@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root { height: 100%; }
+body { margin: 0; background: #f5f6f8; color: #1f2430; }
+
+/* Thin scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #d7dbe2; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #c2c8d2; }
+
+@layer components {
+  .card { @apply bg-white rounded-xl shadow-card border border-[#edf0f3]; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg border border-[#e3e6ea] bg-white px-3 py-2 text-sm hover:bg-[#f2f4f7] transition; }
+  .btn-primary { @apply bg-brand text-white border-brand hover:bg-brand-dark; }
+  .chip { @apply inline-flex items-center gap-1 rounded-full px-3 py-1 text-[13px]; }
+}

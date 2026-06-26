@@ -156,8 +156,13 @@ export const selectScheme = (sessionId: string, schemeId: string, action: 'edit'
 export const editScheme = (sessionId: string, patch: PatchOp[], freeText?: string) =>
   postJson<IntentTurn>(`/sessions/${sessionId}/edit`, { patch, free_text: freeText })
 // render keyframe images (即梦 image2image). shotOrder set = re-render just that one shot.
-export const renderScheme = (sessionId: string, schemeId: string, shotOrder?: number) =>
-  postJson<{ scheme: ShotScript }>(`/sessions/${sessionId}/render`, { scheme_id: schemeId, shot_order: shotOrder ?? null })
-// compose the scheme video (即梦 image2video) — returns the scheme with scheme_video filled
-export const animateScheme = (sessionId: string, schemeId: string) =>
-  postJson<{ scheme: ShotScript }>(`/sessions/${sessionId}/animate`, { scheme_id: schemeId })
+// patch = the local edits to apply at render time (no need to round-trip the graph edit interrupt).
+export const renderScheme = (sessionId: string, schemeId: string, shotOrder?: number, patch: PatchOp[] = []) =>
+  postJson<{ scheme: ShotScript }>(`/sessions/${sessionId}/render`, { scheme_id: schemeId, shot_order: shotOrder ?? null, patch })
+// compose the scheme video (即梦 image2video) — returns the scheme with scheme_video filled.
+// patch = local edits to apply so the video prompt (movement/rhythm) reflects them too.
+export const animateScheme = (sessionId: string, schemeId: string, patch: PatchOp[] = []) =>
+  postJson<{ scheme: ShotScript }>(`/sessions/${sessionId}/animate`, { scheme_id: schemeId, patch })
+// 即梦 removes the person from the uploaded photo → a clean empty-scene background plate
+export const makeBackplate = (sessionId: string) =>
+  postJson<{ url: string }>(`/sessions/${sessionId}/backplate`, {})

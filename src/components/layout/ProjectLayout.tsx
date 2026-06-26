@@ -1,10 +1,16 @@
+import { useState } from 'react'
 import { LeftPanel } from '../left/LeftPanel'
 import { CenterPanel } from '../center/CenterPanel'
 import { RightPanel } from '../right/RightPanel'
 import { useProject } from '../../state/ProjectContext'
 
 export function ProjectLayout() {
-  const { dirty, saveProject } = useProject()
+  const { dirty, saveProject, saveDemo, ready } = useProject()
+  const [saved, setSaved] = useState(false)
+  const onSave = () => {
+    saveProject()
+    if (saveDemo()) { setSaved(true); setTimeout(() => setSaved(false), 1800) } // persist as reusable seed
+  }
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center gap-3 border-b border-[#e8ebee] bg-white px-5 py-3">
@@ -14,8 +20,8 @@ export function ProjectLayout() {
           <div className="text-xs text-gray-400">See your story intent through the language of the lens</div>
         </div>
         <div className="flex-1" />
-        <button className="btn" onClick={() => saveProject()}>
-          💾 Save Plan{dirty ? ' *' : ''}
+        <button className="btn" onClick={onSave} disabled={!ready} title="保存当前方案,并存为可复用示例(左侧「载入示例方案」可秒读)">
+          {saved ? '✓ 已保存' : `💾 Save Plan${dirty ? ' *' : ''}`}
         </button>
       </header>
 

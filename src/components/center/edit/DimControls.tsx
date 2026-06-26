@@ -192,6 +192,16 @@ export function DimControls({ dims, compMode = false, moveMode = false, lightMod
                     className={pill(dims.color.look === l)}>{l}</button>
                 ))}
               </div>
+              <Labeled label={`色温 / 白平衡 · ${warmTxt}`}>
+                <Range min={0} max={1} step={0.05} value={dims.lighting.temperature ?? 0.5}
+                  onChange={(v) => onChange({ lighting: { ...dims.lighting, temperature: v } })} onCommit={onCommit} />
+                <div className="flex justify-between text-[10px] text-slate-400"><span>冷·蓝</span><span>暖·橙</span></div>
+              </Labeled>
+              <Labeled label={`色相 / Tint ${signed(dims.color.tint ?? 0)}`}>
+                <Range min={-50} max={50} step={1} value={dims.color.tint ?? 0}
+                  onChange={(v) => onChange({ color: { ...dims.color, tint: v } })} onCommit={onCommit} />
+                <div className="flex justify-between text-[10px] text-slate-400"><span>绿</span><span>品红</span></div>
+              </Labeled>
               <Labeled label={`Contrast ${signed(dims.color.contrast)}`}>
                 <Range min={-50} max={50} step={1} value={dims.color.contrast}
                   onChange={(v) => onChange({ color: { ...dims.color, contrast: v } })} onCommit={onCommit} />

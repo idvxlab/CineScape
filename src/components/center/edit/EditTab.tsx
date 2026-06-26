@@ -10,7 +10,7 @@ import { ShotStrip } from './ShotStrip'
 export interface Draft { dims: SevenDims; anchor: Anchor }
 
 export function EditTab() {
-  const { project, activeShot, editShot } = useProject()
+  const { project, activeShot, editShot, backplate } = useProject()
   const [draft, setDraft] = useState<Draft>({ dims: activeShot.dims, anchor: activeShot.anchor })
   const [mode, setMode] = useState<'none' | 'comp' | 'move' | 'light'>('none') // canvas editing mode (mutually exclusive)
 
@@ -19,6 +19,12 @@ export function EditTab() {
     setDraft({ dims: activeShot.dims, anchor: activeShot.anchor })
     setMode('none')
   }, [activeShot.id])
+
+  // Re-sync the draft when the committed dims/anchor change externally (e.g. the semantic Expression
+  // sliders on the right panel) so the 3D stage reflects them live.
+  useEffect(() => {
+    setDraft({ dims: activeShot.dims, anchor: activeShot.anchor })
+  }, [activeShot.dims, activeShot.anchor])
 
   // While dragging: purely local updates (0 requests), deriving shot size/tilt orientation in real time
   const onDraftChange = (p: { dims?: Partial<SevenDims>; anchor?: Partial<Anchor> }) => {
@@ -43,7 +49,7 @@ export function EditTab() {
       <div className="min-h-0">
         <div className="relative h-full w-full overflow-hidden rounded-xl">
           <CameraStage3D
-            backdropUrl={project.source.url}
+            backdropUrl={backplate ?? project.source.url}
             dims={draft.dims}
             anchor={draft.anchor}
             compMode={mode === 'comp'}

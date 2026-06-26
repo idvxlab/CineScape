@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import { useProject } from '../../state/ProjectContext'
+import { useEditor } from '../../state/useEditor'
+import { ExpressionPanel } from './ExpressionPanel'
 
 export function RightPanel() {
-  const { project, activeShot, ready, schemes, sceneVideo, animatingScheme, generateVideo } = useProject()
+  const { project, ready, schemes, sceneVideo, animatingScheme, generateVideo } = useProject()
+  const tab = useEditor((s) => s.tab)
   const [err, setErr] = useState('')
 
   const generate = () => {
@@ -52,25 +55,17 @@ export function RightPanel() {
         )}
       </div>
 
-      <div className="card p-4">
-        <div className="mb-2 text-sm font-semibold">Current Shot · Prompt Summary</div>
-        {ready ? (
-          <>
-            <div className="mb-1 text-xs text-gray-500">
-              Shot {activeShot.index}: {activeShot.label} ({fmt(activeShot.startSec)} – {fmt(activeShot.endSec)})
-            </div>
-            <p className="text-[13px] leading-relaxed text-gray-700">{activeShot.promptSummary}</p>
-          </>
-        ) : (
+      {ready && tab === 'edit' ? (
+        <ExpressionPanel />
+      ) : (
+        <div className="card p-4">
+          <div className="mb-2 text-sm font-semibold">Current Shot</div>
           <div className="grid place-items-center py-8 text-center">
-            <div className="mb-2 text-3xl text-gray-300">📄</div>
-            <div className="text-[12px] text-gray-400">Shot details will appear when a shot is selected.</div>
+            <div className="mb-2 text-3xl text-gray-300">🎬</div>
+            <div className="text-[12px] text-gray-400">{ready ? '切到 Edit 标签编辑某个镜头,这里显示该镜的镜头表达。' : 'Shot details will appear when a shot is selected.'}</div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
-}
-function fmt(s: number) {
-  return `0:${String(Math.floor(s)).padStart(2, '0')}`
 }

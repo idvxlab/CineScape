@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useProject } from '../../state/ProjectContext'
 
 export function SourceUploader() {
-  const { source, ready, setSource } = useProject()
+  const { source, ready, setSource, loadDemo, makingBackplate, backplate } = useProject()
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
 
@@ -25,6 +25,13 @@ export function SourceUploader() {
         <>
           <div className="overflow-hidden rounded-lg border border-[#edf0f3]">
             <img src={source.url} alt="source" className="aspect-video w-full object-cover" />
+          </div>
+          <div className="mt-1 text-[11px]">
+            {makingBackplate ? (
+              <span className="flex items-center gap-1.5 text-gray-400"><span className="h-3 w-3 animate-spin rounded-full border-2 border-brand-soft border-t-brand" /> 即梦正在生成空场背景(移除人物)…</span>
+            ) : backplate ? (
+              <span className="text-emerald-600">✓ 已生成空场背景(3D 舞台背景墙)</span>
+            ) : null}
           </div>
           {!ready && (
             <div className="mt-2 rounded-lg bg-brand-soft/60 px-2.5 py-1.5 text-[11px] text-brand">
@@ -50,6 +57,9 @@ export function SourceUploader() {
             <div className="text-[11px] text-gray-300">Supports images (the still that sets your scene)</div>
           </div>
           <button className="btn mt-2 w-full" onClick={() => inputRef.current?.click()}>+ Upload</button>
+          <button className="mt-1.5 w-full rounded-lg border border-dashed border-[#dfe4ea] py-1.5 text-[11px] text-gray-400 transition hover:border-brand/50 hover:text-brand" onClick={loadDemo}>
+            ⚡ 载入示例方案(跳过上传/分析)
+          </button>
         </>
       )}
     </div>

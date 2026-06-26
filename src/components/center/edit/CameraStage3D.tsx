@@ -568,7 +568,10 @@ function SceneLight({ lighting, center }: { lighting: SevenDims['lighting']; cen
 //      while a reverse angle swings the rig to the far side and the backdrop leaves the frame
 //      (exactly as a fixed set wall behaves — so 反打/reverse shots are possible). --
 function BackdropWall({ url, reverse = false }: { url: string; reverse?: boolean }) {
-  const tex = useTexture(url)
+  // give the WebGL texture its own URL (a distinct cache key) so it does a fresh CORS fetch instead of
+  // reusing a non-CORS cached copy left by an <img> tag (which would fail the crossOrigin texture load).
+  const texUrl = url.startsWith('data:') ? url : `${url}${url.includes('?') ? '&' : '?'}tex=1`
+  const tex = useTexture(texUrl)
   // truly fixed in the world: the subject walks relative to it (depthM = their gap)
   const pos: [number, number, number] = [0, 0, BACKDROP_Z]
   // in the reverse-view region the photo is no longer the background — keep it in place but drop to ~25%
@@ -720,8 +723,7 @@ function SubjectGizmo({ dims, anchor, compMode, onDraftChange, onCommit, center 
   const active = mode !== null
   return (
     <>
-      {/* the actor capsule ALWAYS sits at its framed position (world pos + composition offset),
-          so editing composition — via the canvas OR the side sliders — always moves it. */}
+      {/* the actor capsule ALWAYS sits at its framed position (world pos + composition offset) */}
       <group position={sp.toArray()}>
         <mesh
           onPointerDown={grab(compMode ? 'focus' : 'ground')}
@@ -806,6 +808,12 @@ function Viewfinder({ backdropUrl, dims, anchor }: { backdropUrl: string; dims: 
         </svg>
       </div>
       {tint !== 'transparent' && <div className="absolute inset-0" style={{ background: tint, mixBlendMode: 'soft-light' }} />}
+      {(() => {
+        const tn = dims.color?.tint ?? 0
+        if (!tn) return null
+        const bg = tn < 0 ? `rgba(70,200,100,${Math.min(0.4, (Math.abs(tn) / 50) * 0.4)})` : `rgba(220,70,200,${Math.min(0.4, (tn / 50) * 0.4)})`
+        return <div className="absolute inset-0" style={{ background: bg, mixBlendMode: 'soft-light' }} />
+      })()}
       <div className="absolute inset-0" style={{ background: lightOverlay }} />
       <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 56" preserveAspectRatio="none">
         {[1 / 3, 2 / 3].map((f) => (

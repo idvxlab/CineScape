@@ -22,7 +22,7 @@ export interface SevenDims {
   rhythm: { curve: { x: number; y: number }[] }
   // pos: light position on canvas (normalized); softness 0=hard→1=soft; temperature 0=cool→1=warm; spread 0=spot→1=flood
   lighting: { direction: string; keyPct: number; ratio: number; pos?: { x: number; y: number }; softness?: number; temperature?: number; spread?: number }
-  color: { look: string; contrast: number; saturation: number }
+  color: { look: string; contrast: number; saturation: number; tint?: number } // tint: −50 绿 ↔ +50 品红
   focal: { mm: number; dof: number } // dof: 0 shallow depth of field → 1 deep depth of field
 }
 
@@ -40,6 +40,8 @@ export interface Shot {
   anchor: Anchor // what the camera orbits around (initial value = backend detection; adjustments affect only this shot)
   dims: SevenDims
   promptSummary: string
+  role?: string // narrative function in the story (establish / advance / detail) — drives a differentiated look
+  serves?: string[] // v3 design-space sub-intent codes this shot serves (from the backend scheme)
 }
 
 export interface IntentTag { code: string; name: string; nameEn?: string; group: string }

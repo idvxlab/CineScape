@@ -140,7 +140,7 @@ export function IntentChat() {
         )}
 
         {/* interactive alignment widgets */}
-        {turn?.phase === 'align' && turn.widgets && (
+        {turn?.phase === 'align' && !!turn.widgets?.length && (
           <AlignmentPanel
             widgets={turn.widgets}
             disabled={loading}
@@ -162,8 +162,8 @@ export function IntentChat() {
               </div>
             )}
             <div className="flex gap-2">
-              <button className="flex-1 rounded-lg bg-brand py-1.5 text-xs font-medium text-white hover:opacity-90" onClick={acceptIntent}>采纳意图</button>
-              <button className="flex-1 rounded-lg border border-slate-200 py-1.5 text-xs text-slate-600 hover:bg-slate-50" disabled={loading} onClick={() => sessionId && run((onR) => confirmIntent(sessionId, false, text.trim() || undefined, onR))}>再调整</button>
+              <button className="flex-1 rounded-lg bg-brand py-1.5 text-xs font-medium text-white hover:opacity-90" onClick={acceptIntent}>Accept Intent</button>
+              <button className="flex-1 rounded-lg border border-slate-200 py-1.5 text-xs text-slate-600 hover:bg-slate-50" disabled={loading} onClick={() => sessionId && run((onR) => confirmIntent(sessionId, false, text.trim() || undefined, onR))}>Adjust again</button>
             </div>
           </div>
         )}

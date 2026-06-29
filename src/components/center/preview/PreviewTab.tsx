@@ -37,7 +37,7 @@ function SchemesEmpty() {
     <div className="flex h-full flex-col items-center justify-center text-center">
       <div className="mb-4 grid h-20 w-20 place-items-center rounded-full bg-[#f1f3f6] text-3xl text-gray-400">🎬</div>
       <div className="text-[17px] font-semibold text-gray-700">Your shot schemes will appear here</div>
-      <div className="mt-1.5 max-w-sm text-[13px] text-gray-400">Confirm your intent in the assistant (采纳意图) to reason out candidate schemes.</div>
+      <div className="mt-1.5 max-w-sm text-[13px] text-gray-400">Confirm your intent in the assistant (Accept Intent) to reason out candidate schemes.</div>
     </div>
   )
 }

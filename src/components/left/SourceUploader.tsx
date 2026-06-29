@@ -28,9 +28,9 @@ export function SourceUploader() {
           </div>
           <div className="mt-1 text-[11px]">
             {makingBackplate ? (
-              <span className="flex items-center gap-1.5 text-gray-400"><span className="h-3 w-3 animate-spin rounded-full border-2 border-brand-soft border-t-brand" /> 即梦正在生成空场背景(移除人物)…</span>
+              <span className="flex items-center gap-1.5 text-gray-400"><span className="h-3 w-3 animate-spin rounded-full border-2 border-brand-soft border-t-brand" /> Dreamina is generating the empty-scene plate (removing the person)…</span>
             ) : backplate ? (
-              <span className="text-emerald-600">✓ 已生成空场背景(3D 舞台背景墙)</span>
+              <span className="text-emerald-600">✓ Empty-scene plate ready (3D stage backdrop)</span>
             ) : null}
           </div>
           {!ready && (
@@ -58,7 +58,7 @@ export function SourceUploader() {
           </div>
           <button className="btn mt-2 w-full" onClick={() => inputRef.current?.click()}>+ Upload</button>
           <button className="mt-1.5 w-full rounded-lg border border-dashed border-[#dfe4ea] py-1.5 text-[11px] text-gray-400 transition hover:border-brand/50 hover:text-brand" onClick={loadDemo}>
-            ⚡ 载入示例方案(跳过上传/分析)
+            ⚡ Load demo scheme (skip upload/analysis)
           </button>
         </>
       )}

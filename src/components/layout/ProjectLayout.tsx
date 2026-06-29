@@ -20,8 +20,8 @@ export function ProjectLayout() {
           <div className="text-xs text-gray-400">See your story intent through the language of the lens</div>
         </div>
         <div className="flex-1" />
-        <button className="btn" onClick={onSave} disabled={!ready} title="保存当前方案,并存为可复用示例(左侧「载入示例方案」可秒读)">
-          {saved ? '✓ 已保存' : `💾 Save Plan${dirty ? ' *' : ''}`}
+        <button className="btn" onClick={onSave} disabled={!ready} title='Save the current plan and store it as a reusable demo (load instantly via "Load demo scheme" on the left)'>
+          {saved ? '✓ Saved' : `💾 Save Plan${dirty ? ' *' : ''}`}
         </button>
       </header>
 

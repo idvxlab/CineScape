@@ -17,7 +17,7 @@ interface Ctx {
   analyzing: boolean // backend intent parsing in progress
   source: { file: File | null; url: string } | null // uploaded reference image
   setSource(file: File): void
-  backplate: string | null // 即梦-generated person-removed background plate (the 3D stage backdrop)
+  backplate: string | null // Dreamina-generated person-removed background plate (the 3D stage backdrop)
   makingBackplate: boolean // backplate generation in progress
   parseIntent(rawIntent: string, onReasoning?: OnReasoning): Promise<IntentTurn> // calls the cinedesign backend
   loadDemo(): void // load the saved real run (or mock fallback) — skip upload/analyze/generate
@@ -30,8 +30,8 @@ interface Ctx {
   renderingShot: number | null // index of the single shot being re-rendered (null = whole scheme)
   animatingScheme: boolean
   sceneVideo: string | null
-  generateKeyframes(shotIndex?: number): Promise<void> // push 3D edits → render keyframes (即梦); shotIndex = just one
-  generateVideo(): Promise<void> // compose the scheme video (即梦)
+  generateKeyframes(shotIndex?: number): Promise<void> // push 3D edits → render keyframes (Dreamina); shotIndex = just one
+  generateVideo(): Promise<void> // compose the scheme video (Dreamina)
 }
 
 const ProjectCtx = createContext<Ctx | null>(null)
@@ -109,7 +109,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   // raw intent + uploaded image → cinedesign backend; on success populate the editor and mark ready
   const parseIntent = async (rawIntent: string, onReasoning?: OnReasoning): Promise<IntentTurn> => {
-    if (!source?.file) throw new Error('请先上传参考画面')
+    if (!source?.file) throw new Error('Please upload a reference image first')
     setAnalyzing(true)
     try {
       const turn = await createSession(rawIntent, source.file, onReasoning)
@@ -117,7 +117,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       setReferenceImage(assetUrl(turn.reference_image) ?? null) // backend-hosted copy of the upload (small URL)
       setProject(createProjectFromImage(source.url))
       setReady(true)
-      // 即梦 removes the person → clean empty-scene plate used as the 3D stage backdrop (fire-and-forget)
+      // Dreamina removes the person → clean empty-scene plate used as the 3D stage backdrop (fire-and-forget)
       setMakingBackplate(true)
       makeBackplate(turn.session_id)
         .then(({ url }) => setBackplate(assetUrl(url) ?? null))
@@ -164,8 +164,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       const patch = targets.flatMap((i) => dimsToPatch(activePlan.shots[i]!.dims, scheme.shots[i]?.order ?? i + 1))
       const order = single ? scheme.shots[shotIndex]?.order : undefined
       // edits travel with the render call (render applies the patch itself) — no graph edit-interrupt
-      // round-trip, so loading a历史 session (no longer waiting in candidates) can still re-render.
-      const { scheme: rendered } = await renderScheme(sessionId, scheme.scheme_id, order, patch) // 即梦 image2image
+      // round-trip, so loading a past session (no longer waiting in candidates) can still re-render.
+      const { scheme: rendered } = await renderScheme(sessionId, scheme.scheme_id, order, patch) // Dreamina image2image
       setSchemes((prev) => prev.map((s, k) => (k === idx ? rendered : s)))
       const bust = Date.now() // rendered files reuse the same name → bust the browser cache
       const targetSet = new Set(targets)

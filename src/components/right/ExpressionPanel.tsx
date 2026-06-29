@@ -11,7 +11,7 @@ export function ExpressionPanel() {
 
   const served = (activeShot.serves && activeShot.serves.length ? activeShot.serves : FALLBACK_SERVES).filter((c) => CODEBOOK[c])
   const servedSet = new Set(served)
-  const cats = [...new Set(served.map((c) => CODEBOOK[c]!.l1))] // involved 一级 categories
+  const cats = [...new Set(served.map((c) => CODEBOOK[c]!.l1))] // involved L1 categories
 
   // expressible dims → sliders (dedupe by control); the rest → read-only chips
   const sliders: DimAxis[] = []
@@ -29,18 +29,18 @@ export function ExpressionPanel() {
     <div className="space-y-3">
       <div className="card p-3">
         <div className="mb-2 flex items-baseline justify-between">
-          <span className="text-[13px] font-semibold">本镜涉及的设计空间 <span className="text-[10px] font-normal text-gray-400">(来自方案意图标注)</span></span>
-          <button className="text-[11px] text-brand" onClick={() => setShowFull(true)}>完整设计空间 ›</button>
+          <span className="text-[13px] font-semibold">Design space for this shot <span className="text-[10px] font-normal text-gray-400">(from scheme intent labels)</span></span>
+          <button className="text-[11px] text-brand" onClick={() => setShowFull(true)}>Full design space ›</button>
         </div>
 
-        {/* 一级意图(大类)标签 — 一起显示在最上面 */}
+        {/* L1 intent (category) tags — shown together at the top */}
         <div className="mb-3 flex flex-wrap gap-1.5">
           {cats.map((c) => (
             <span key={c} className="rounded-full bg-brand-soft px-2 py-0.5 text-[11px] font-medium text-brand">{c}</span>
           ))}
         </div>
 
-        {/* 二级维度 — 滑杆 */}
+        {/* L2 dimensions — sliders */}
         <div className="space-y-3">
           {sliders.map((ax) => {
             const v = ax.read(d)
@@ -49,7 +49,7 @@ export function ExpressionPanel() {
               <div key={ax.code}>
                 <div className="mb-1 flex items-center justify-between">
                   <span className="text-[12px] font-semibold text-gray-800">{dim.l2} <span className="text-[9px] font-normal text-gray-300">{ax.code} · {dim.l1}</span></span>
-                  <span className="text-[10px] text-gray-400">当前: {ax.label(v)}</span>
+                  <span className="text-[10px] text-gray-400">Now: {ax.label(v)}</span>
                 </div>
                 <div className="flex items-center gap-2 text-[10px] text-gray-400">
                   <span className="w-16 flex-none text-right">{ax.left}</span>
@@ -65,7 +65,7 @@ export function ExpressionPanel() {
 
         {listed.length > 0 && (
           <div className="mt-3 border-t border-[#eef1f4] pt-2">
-            <div className="mb-1 text-[10px] text-gray-400">其余涉及维度(不可单轴调节)</div>
+            <div className="mb-1 text-[10px] text-gray-400">Other involved dimensions (no single-axis control)</div>
             <div className="flex flex-wrap gap-1.5">
               {listed.map((c) => (
                 <span key={c} className="rounded border border-[#e8ebee] px-1.5 py-0.5 text-[11px] text-gray-500">{c} {CODEBOOK[c]!.l2}</span>
@@ -75,11 +75,11 @@ export function ExpressionPanel() {
         )}
       </div>
 
-      {/* 为什么这样拍 — 参数 → 语义 → 意图 的推理(连接设计空间与 prompt summary) */}
+      {/* Why shot this way — param → semantics → intent reasoning (links design space with prompt summary) */}
       {sliders.length > 0 && (
         <div className="card p-3">
-          <div className="mb-1 text-[13px] font-semibold">为什么这样拍 <span className="text-[10px] font-normal text-gray-400">参数 → 语义 → 意图</span></div>
-          <p className="mb-2.5 text-[10px] leading-relaxed text-gray-400">当前这组镜头参数如何实现上面的设计空间意图:</p>
+          <div className="mb-1 text-[13px] font-semibold">Why shot this way <span className="text-[10px] font-normal text-gray-400">param → semantics → intent</span></div>
+          <p className="mb-2.5 text-[10px] leading-relaxed text-gray-400">How this set of shot params realizes the design-space intents above:</p>
           <div className="space-y-2">
             {sliders.map((ax) => {
               const v = ax.read(d)
@@ -115,15 +115,15 @@ export function ExpressionPanel() {
   )
 }
 
-// read-only browser of the complete v3 design space (12 一级 / 56 二级); involved + adjustable marked
+// read-only browser of the complete v3 design space (12 L1 / 56 L2); involved + adjustable marked
 function FullDesignSpace({ servedSet, onClose }: { servedSet: Set<string>; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6" onClick={onClose}>
       <div className="flex max-h-[86vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-[#eef1f4] px-5 py-3">
           <div>
-            <div className="text-[15px] font-semibold">完整设计空间 · 导演意图 v3</div>
-            <div className="text-[11px] text-gray-400">12 一级意图 / {Object.keys(CODEBOOK).length} 二级维度 · 体系固定不可编辑</div>
+            <div className="text-[15px] font-semibold">Full design space · Director Intent v3</div>
+            <div className="text-[11px] text-gray-400">12 L1 intents / {Object.keys(CODEBOOK).length} L2 dimensions · fixed taxonomy, not editable</div>
           </div>
           <button onClick={onClose} className="grid h-7 w-7 place-items-center rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200">✕</button>
         </div>
@@ -142,8 +142,8 @@ function FullDesignSpace({ servedSet, onClose }: { servedSet: Set<string>; onClo
                     <div key={code} className={`flex items-center gap-1.5 text-[11px] ${involved ? 'font-medium text-brand' : 'text-gray-500'}`}>
                       <span className="w-7 flex-none text-gray-300">{code}</span>
                       <span className="flex-1">{CODEBOOK[code]!.l2}</span>
-                      {adjustable && <span className="rounded bg-slate-100 px-1 text-[9px] text-slate-400">可调</span>}
-                      {involved && <span className="text-[9px] text-brand">●本镜</span>}
+                      {adjustable && <span className="rounded bg-slate-100 px-1 text-[9px] text-slate-400">Adjustable</span>}
+                      {involved && <span className="text-[9px] text-brand">●This shot</span>}
                     </div>
                   )
                 })}

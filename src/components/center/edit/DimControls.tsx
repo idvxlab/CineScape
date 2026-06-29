@@ -72,13 +72,13 @@ export function DimControls({ dims, compMode = false, moveMode = false, lightMod
                 <div className="mb-1 text-[11px] font-semibold text-brand">{focalMeaning(dims.focal.mm)}</div>
                 <Range min={16} max={135} step={1} value={dims.focal.mm}
                   onChange={(v) => onChange({ focal: { ...dims.focal, mm: v }, composition: { ...dims.composition, zoom: clampN(Math.round((v / 35) * 100) / 100, 0.5, 4) } })} onCommit={onCommit} />
-                <div className="flex justify-between text-[10px] text-slate-400"><span>广角·张力</span><span>长焦·凝视</span></div>
+                <div className="flex justify-between text-[10px] text-slate-400"><span>Wide · tension</span><span>Tele · gaze</span></div>
               </Labeled>
               <Labeled label={`Depth of Field · ${dofTxt}`}>
                 <div className="mb-1 text-[11px] font-semibold text-brand">{dofMeaning(dims.focal.dof)}</div>
                 <Range min={0} max={1} step={0.05} value={dims.focal.dof}
                   onChange={(v) => onChange({ focal: { ...dims.focal, dof: v } })} onCommit={onCommit} />
-                <div className="flex justify-between text-[10px] text-slate-400"><span>浅·聚焦情绪</span><span>深·交代环境</span></div>
+                <div className="flex justify-between text-[10px] text-slate-400"><span>Shallow · emotion</span><span>Deep · context</span></div>
               </Labeled>
             </Group>
           )}
@@ -89,7 +89,7 @@ export function DimControls({ dims, compMode = false, moveMode = false, lightMod
               <Range min={-90} max={90} step={1} value={dims.angle.pitch}
                 onChange={(v) => onChange({ angle: { ...dims.angle, pitch: v } })} onCommit={onCommit} />
               <div className="flex justify-between text-[10px] text-slate-400">
-                <span>仰视·权力</span><span>平视·客观</span><span>俯视·渺小</span>
+                <span>Low · power</span><span>Eye · objective</span><span>High · small</span>
               </div>
             </Group>
           )}
@@ -103,7 +103,7 @@ export function DimControls({ dims, compMode = false, moveMode = false, lightMod
                     className={pill(dims.shotSize === s)}>{s}</button>
                 ))}
               </div>
-              <div className="text-[10px] text-slate-400">远 → 孤寂·渺小,近 → 亲密·情绪;由相机距离决定</div>
+              <div className="text-[10px] text-slate-400">Far → solitary · small, near → intimate · emotional; set by camera distance</div>
             </Group>
           )}
 
@@ -148,7 +148,7 @@ export function DimControls({ dims, compMode = false, moveMode = false, lightMod
               <div className="mb-1 text-[12px] font-semibold text-brand">{timeMeaning(dims.movement.durationSec)}</div>
               <Range min={0.5} max={12} step={0.5} value={dims.movement.durationSec}
                 onChange={(v) => onChange({ movement: { ...dims.movement, durationSec: v } })} onCommit={onCommit} />
-              <div className="flex justify-between text-[10px] text-slate-400"><span>急促·紧张</span><span>舒缓·沉思</span></div>
+              <div className="flex justify-between text-[10px] text-slate-400"><span>Rapid · tense</span><span>Slow · reflective</span></div>
             </Group>
           )}
 
@@ -163,22 +163,22 @@ export function DimControls({ dims, compMode = false, moveMode = false, lightMod
               <Labeled label={`Intensity ${dims.lighting.keyPct}%`}>
                 <Range min={0} max={100} step={1} value={dims.lighting.keyPct}
                   onChange={(v) => onChange({ lighting: { ...dims.lighting, keyPct: v } })} onCommit={onCommit} />
-                <div className="flex justify-between text-[10px] text-slate-400"><span>低调·压抑神秘</span><span>高调·明快通透</span></div>
+                <div className="flex justify-between text-[10px] text-slate-400"><span>Low key · oppressive</span><span>High key · clear</span></div>
               </Labeled>
               <Labeled label={`Beam · ${spreadTxt}`}>
                 <Range min={0} max={1} step={0.05} value={spread}
                   onChange={(v) => onChange({ lighting: { ...dims.lighting, spread: v } })} onCommit={onCommit} />
-                <div className="flex justify-between text-[10px] text-slate-400"><span>聚光·戏剧</span><span>泛光·日常</span></div>
+                <div className="flex justify-between text-[10px] text-slate-400"><span>Spot · dramatic</span><span>Flood · everyday</span></div>
               </Labeled>
               <Labeled label={`Softness · ${softTxt}`}>
                 <Range min={0} max={1} step={0.05} value={soft}
                   onChange={(v) => onChange({ lighting: { ...dims.lighting, softness: v } })} onCommit={onCommit} />
-                <div className="flex justify-between text-[10px] text-slate-400"><span>硬·锐利戏剧</span><span>柔·亲和温润</span></div>
+                <div className="flex justify-between text-[10px] text-slate-400"><span>Hard · sharp</span><span>Soft · gentle</span></div>
               </Labeled>
               <Labeled label={`Warmth · ${warmTxt}`}>
                 <Range min={0} max={1} step={0.05} value={warm}
                   onChange={(v) => onChange({ lighting: { ...dims.lighting, temperature: v } })} onCommit={onCommit} />
-                <div className="flex justify-between text-[10px] text-slate-400"><span>冷·疏离冷峻</span><span>暖·温暖欢快</span></div>
+                <div className="flex justify-between text-[10px] text-slate-400"><span>Cool · detached</span><span>Warm · cheerful</span></div>
               </Labeled>
             </Group>
           )}
@@ -192,25 +192,25 @@ export function DimControls({ dims, compMode = false, moveMode = false, lightMod
                     className={pill(dims.color.look === l)}>{l}</button>
                 ))}
               </div>
-              <Labeled label={`色温 / 白平衡 · ${warmTxt}`}>
+              <Labeled label={`Color Temp / WB · ${warmTxt}`}>
                 <Range min={0} max={1} step={0.05} value={dims.lighting.temperature ?? 0.5}
                   onChange={(v) => onChange({ lighting: { ...dims.lighting, temperature: v } })} onCommit={onCommit} />
-                <div className="flex justify-between text-[10px] text-slate-400"><span>冷·蓝</span><span>暖·橙</span></div>
+                <div className="flex justify-between text-[10px] text-slate-400"><span>Cool · blue</span><span>Warm · orange</span></div>
               </Labeled>
-              <Labeled label={`色相 / Tint ${signed(dims.color.tint ?? 0)}`}>
+              <Labeled label={`Hue / Tint ${signed(dims.color.tint ?? 0)}`}>
                 <Range min={-50} max={50} step={1} value={dims.color.tint ?? 0}
                   onChange={(v) => onChange({ color: { ...dims.color, tint: v } })} onCommit={onCommit} />
-                <div className="flex justify-between text-[10px] text-slate-400"><span>绿</span><span>品红</span></div>
+                <div className="flex justify-between text-[10px] text-slate-400"><span>Green</span><span>Magenta</span></div>
               </Labeled>
               <Labeled label={`Contrast ${signed(dims.color.contrast)}`}>
                 <Range min={-50} max={50} step={1} value={dims.color.contrast}
                   onChange={(v) => onChange({ color: { ...dims.color, contrast: v } })} onCommit={onCommit} />
-                <div className="flex justify-between text-[10px] text-slate-400"><span>平淡·柔和</span><span>强烈·戏剧</span></div>
+                <div className="flex justify-between text-[10px] text-slate-400"><span>Flat · soft</span><span>Strong · dramatic</span></div>
               </Labeled>
               <Labeled label={`Saturation ${signed(dims.color.saturation)}`}>
                 <Range min={-50} max={50} step={1} value={dims.color.saturation}
                   onChange={(v) => onChange({ color: { ...dims.color, saturation: v } })} onCommit={onCommit} />
-                <div className="flex justify-between text-[10px] text-slate-400"><span>低饱·冷静克制</span><span>高饱·浓烈情绪</span></div>
+                <div className="flex justify-between text-[10px] text-slate-400"><span>Low sat · restrained</span><span>High sat · intense</span></div>
               </Labeled>
             </Group>
           )}

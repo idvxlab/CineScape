@@ -3,8 +3,11 @@
 import type { Plan, Shot, SevenDims, MoveType, ShotSize } from '../api/types'
 import type { ShotScript, SchemeShot, PatchOp } from '../api/backend'
 import { zoneOf, levelOf } from './dims'
-import { moveMeaning, lookMeaning, timeMeaning } from './semantics'
 import { defaultRoleKey } from './shotRoles'
+
+// Chinese cinematic-semantic phrases kept on purpose for the (Chinese) Dreamina image model in dimsToPatch.
+const moveCN = (type: string): string => ({ 'Dolly In': '推进·逼近', 'Dolly Out': '拉远·抽离', Pan: '横摇·环视', Truck: '平移·伴随', Follow: '跟随·代入', Crane: '升降·宏大' } as Record<string, string>)[type] ?? '固定·凝滞'
+const timeCN = (sec: number): string => (sec <= 2 ? '急促·紧张' : sec >= 6 ? '舒缓·凝滞' : '平稳·叙事')
 
 const has = (s: string, ...keys: string[]) => keys.some((k) => s.includes(k))
 const clamp = (n: number, a: number, b: number) => Math.min(b, Math.max(a, n))
@@ -194,7 +197,7 @@ const SIZE_CN: Record<ShotSize, string> = {
 // The agent's reasoning narrative (description) is kept untouched.
 export function shotReading(d: SevenDims): { label: string; prompt: string } {
   return {
-    label: SIZE_CN[d.shotSize] ?? d.shotSize,
+    label: d.shotSize,
     prompt: `${d.shotSize} · ${d.angle.pitch}° · ${Math.round(d.focal.mm)}mm · DoF ${d.focal.dof.toFixed(2)} · ${d.color.look} · ${d.movement.type} · ${d.movement.durationSec.toFixed(1)}s`,
   }
 }
@@ -290,25 +293,78 @@ function rhythmPhrase(curve: { x: number; y: number }[] | undefined): string {
 
 // full-coverage reverse map: every edited dim → a precise text patch op (+ a comprehensive frame_edit_hint
 // covering all VISUAL dims, which is what 即梦 image2image actually reads for the keyframe).
+// Concise, instruction-style edit prompt for the (Chinese, instruction-edit) Dreamina image2image.
+// Lesson (verified): long parametric prompts (78mm / orbit 0° / 占画面170% / 5860K …) drown the core
+// edit and Dreamina keeps the original framing. A short natural-language edit ("改成大特写、浅景深、冷调")
+// changes framing reliably with the same subject — so distill dims into the few meaningful changes in
+// plain cinematic terms, no raw numbers.
+function conciseHint(d: SevenDims): string {
+  const parts: string[] = []
+  const sz = d.shotSize
+  parts.push(
+    sz === 'Extreme Close-Up' ? '改成大特写，紧紧聚焦画面主体的面部（五官占据画面）'
+    : sz === 'Close-Up' ? '改成特写，主体面部、肩部以上入画'
+    : sz === 'Medium Close-Up' ? '改成中近景，主体胸部以上入画'
+    : sz === 'Medium' ? '改成中景，主体腰部以上入画'
+    : sz === 'Wide' ? '改成全景，主体全身入画、环境占主要画面'
+    : sz === 'Extreme Wide' ? '改成大远景，主体在画面中很小、环境主导画面'
+    : `改成${SIZE_CN[sz] ?? sz}`,
+  )
+  if (d.focal.dof < 0.34) parts.push('浅景深、背景明显虚化')
+  else if (d.focal.dof > 0.66) parts.push('深景深、前后都清晰')
+  // 垂直角度(俯仰):分级 + 明确镜头语言
+  const p = d.angle.pitch
+  if (p <= -22) parts.push('低角度仰拍、镜头明显朝上，强化主体的高大与压迫感')
+  else if (p <= -7) parts.push('低角度仰拍')
+  else if (p < -3) parts.push('略微仰视')
+  else if (p >= 22) parts.push('高角度俯拍、镜头明显朝下，让主体显得渺小')
+  else if (p >= 7) parts.push('高角度俯拍')
+  else if (p > 3) parts.push('略微俯视')
+  // 水平机位(环绕)
+  const a = Math.abs(((d.angle.yaw % 360) + 360) % 360); const aa = a > 180 ? 360 - a : a
+  if (aa >= 150) parts.push('从主体正后方拍摄')
+  else if (aa >= 110) parts.push('侧后方过肩角度')
+  else if (aa >= 65) parts.push('从正侧面拍摄（侧脸）')
+  else if (aa >= 25) parts.push('斜侧角度（侧前方约 45°）')
+  // 构图:主体位置 + 留白 + 三分/失衡(此前完全缺失,是构图不生效的主因)
+  const fx = d.composition.focus?.x ?? 0.5, fy = d.composition.focus?.y ?? 0.5
+  const thirds = d.composition.rule === 'thirds'
+  const comp: string[] = []
+  if (fx < 0.4) comp.push(`主体${thirds ? '按三分法' : ''}置于画面左侧、右侧大量留白`)
+  else if (fx > 0.6) comp.push(`主体${thirds ? '按三分法' : ''}置于画面右侧、左侧大量留白`)
+  else comp.push('主体居中构图')
+  if (fy < 0.4) comp.push('主体位置偏上')
+  else if (fy > 0.62) comp.push('主体位置偏下、上方留白')
+  if (Math.abs(d.composition.balance ?? 0) > 0.3) comp.push('刻意失衡构图、营造视觉张力')
+  parts.push(comp.join('、'))
+  const look = (d.color.look || '').toLowerCase()
+  if (look.includes('warm')) parts.push('整体暖色调（画面偏暖橙、白平衡偏暖）')
+  else if (look.includes('teal')) parts.push('青橙色调（暗部冷青、肤色暖橙的冷暖对比）')
+  else if (look.includes('film')) parts.push('胶片质感色调（轻微褪色、暖灰）')
+  else if (look.includes('cool')) parts.push('整体冷色调（画面偏冷蓝青、压低暖黄、降低肤色暖度）')
+  if (d.color.contrast > 18) parts.push('高对比、明暗反差强')
+  else if (d.color.contrast < -18) parts.push('低对比、柔和')
+  // 把"整体色调影调"明确划入【要改变】项,与【要保持】的人物/场景物体分开 —— 否则即梦会把
+  // "保持场景不变"连色彩一起保留,导致调色不生效、镜头间影调不统一。
+  return parts.join('，') +
+    '。请保持画面中的人物与场景物体本身不变（同一个人、同样相貌与服装、同一空间布置），' +
+    '但要真实改变取景、景别、镜头语言，以及【整体色调影调】——上述色调要统一覆盖整个画面（包括人物肤色与背景），不要沿用原图的色彩倾向。'
+}
+
 export function dimsToPatch(d: SevenDims, order: number): PatchOp[] {
   const p = (field: string, value: string): PatchOp => ({ shot_order: order, field, value })
-  const hint =
-    `本镜景别为 ${shotPhrase(d)} —— 这是最优先的取景要求,务必真实改变取景范围与主体大小。` +
-    '在此前提下,以电影摄影方式按下列镜头语言布光取景,保持人物身份与场景元素一致(同一主体、同一空间):' +
-    `${orbitPhrase(d.angle.yaw)};${pitchPhrase(d.angle.pitch)};焦距=${focalPhrase(d.focal.mm)};` +
-    `景深=${dofPhrase(d.focal.dof)};构图=${compPhrase(d.composition)};光照=${lightPhrase(d.lighting)};调色=${colorPhrase(d)}。` +
-    '机位变化需真实改变透视,景深变化需真实改变背景虚化程度。'
+  const hint = conciseHint(d)
   return [
     p('shot_size', shotPhrase(d)),
     p('angle', `${orbitPhrase(d.angle.yaw)};${pitchPhrase(d.angle.pitch)}`), // 水平 + 垂直机位(十维无独立水平字段)
     p('composition', compPhrase(d.composition)),
-    p('movement', `${d.movement.type}(${moveMeaning(d.movement.type)})`),
+    p('movement', `${d.movement.type}(${moveCN(d.movement.type)})`),
     p('focal_length', focalPhrase(d.focal.mm)),
     p('depth_of_field', dofPhrase(d.focal.dof)),
     p('lighting', lightPhrase(d.lighting)),
     p('color_tone', colorPhrase(d)),
     p('rhythm', `${d.movement.durationSec.toFixed(1)}s · ${rhythmPhrase(d.rhythm?.curve)}`),
-    p('duration', `${d.movement.durationSec.toFixed(1)}s(${timeMeaning(d.movement.durationSec)})`),
+    p('duration', `${d.movement.durationSec.toFixed(1)}s(${timeCN(d.movement.durationSec)})`),
     p('frame_edit_hint', hint),
   ]
 }

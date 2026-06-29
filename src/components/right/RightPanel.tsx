@@ -30,7 +30,7 @@ export function RightPanel() {
               {animatingScheme && (
                 <div className="absolute inset-0 grid place-items-center gap-2 bg-black/55 text-sm text-white">
                   <span className="h-6 w-6 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                  Generating video… (即梦, may take a while)
+                  Generating video… (Dreamina, may take a while)
                 </div>
               )}
             </div>
@@ -62,7 +62,7 @@ export function RightPanel() {
           <div className="mb-2 text-sm font-semibold">Current Shot</div>
           <div className="grid place-items-center py-8 text-center">
             <div className="mb-2 text-3xl text-gray-300">🎬</div>
-            <div className="text-[12px] text-gray-400">{ready ? '切到 Edit 标签编辑某个镜头,这里显示该镜的镜头表达。' : 'Shot details will appear when a shot is selected.'}</div>
+            <div className="text-[12px] text-gray-400">{ready ? 'Switch to the Edit tab and edit a shot; its shot expression shows here.' : 'Shot details will appear when a shot is selected.'}</div>
           </div>
         </div>
       )}

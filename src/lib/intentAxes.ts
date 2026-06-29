@@ -19,45 +19,45 @@ export interface DesignParam {
 
 export const PARAMS: Record<string, DesignParam> = {
   proximity: {
-    key: 'proximity', name: '观众与人物的关系', left: '旁观疏离', right: '靠近亲密',
+    key: 'proximity', name: 'Viewer–subject relation', left: 'Detached observer', right: 'Close & intimate',
     read: (d) => 1 - (clamp(d.distanceM, DIST_MIN, DIST_MAX) - DIST_MIN) / (DIST_MAX - DIST_MIN),
-    label: (v) => (v < 0.25 ? '疏离' : v < 0.45 ? '旁观' : v < 0.6 ? '中性' : v < 0.8 ? '靠近' : '亲密'),
+    label: (v) => (v < 0.25 ? 'Detached' : v < 0.45 ? 'Observing' : v < 0.6 ? 'Neutral' : v < 0.8 ? 'Closer' : 'Intimate'),
     apply: (d, v) => {
       const dist = Math.round(lerp(DIST_MAX, DIST_MIN, v))
       return { ...d, distanceM: dist, shotSize: zoneOf(dist / (d.composition.zoom ?? 1)) }
     },
   },
   viewpos: {
-    key: 'viewpos', name: '观看位置', left: '俯视脆弱', right: '平视陪伴',
+    key: 'viewpos', name: 'Viewing position', left: 'High angle · vulnerable', right: 'Eye level · companion',
     read: (d) => clamp((30 - d.angle.pitch) / 60, 0, 1),
-    label: (v) => (v < 0.4 ? '俯视·人物显小' : v < 0.62 ? '平视·平等陪伴' : '仰视·人物有力'),
+    label: (v) => (v < 0.4 ? 'High angle · subject small' : v < 0.62 ? 'Eye level · equal companion' : 'Low angle · subject powerful'),
     apply: (d, v) => {
       const pitch = Math.round(lerp(30, -30, v))
       return { ...d, angle: { ...d.angle, pitch, level: levelOf(pitch) } }
     },
   },
   attention: {
-    key: 'attention', name: '叙事关注点', left: '空间处境', right: '人物内心',
+    key: 'attention', name: 'Narrative focus', left: 'Spatial situation', right: 'Inner self',
     read: (d) => 1 - (d.focal.dof ?? 0.5),
-    label: (v) => (v < 0.4 ? '偏环境' : v < 0.6 ? '平衡偏人物' : '聚焦内心'),
+    label: (v) => (v < 0.4 ? 'Toward environment' : v < 0.6 ? 'Balanced toward subject' : 'Focus on inner self'),
     apply: (d, v) => ({ ...d, focal: { ...d.focal, dof: Math.round((1 - v) * 100) / 100 } }),
   },
   readability: {
-    key: 'readability', name: '人物的可感性', left: '难以辨认', right: '情绪可读',
+    key: 'readability', name: 'Character legibility', left: 'Hard to read', right: 'Emotionally legible',
     read: (d) => clamp((d.lighting.keyPct ?? 60) / 100, 0, 1),
-    label: (v) => (v < 0.4 ? '较暗·难辨' : v < 0.65 ? '较高' : '清晰可读'),
+    label: (v) => (v < 0.4 ? 'Dim · hard to read' : v < 0.65 ? 'Brighter' : 'Clear & legible'),
     apply: (d, v) => ({ ...d, lighting: { ...d.lighting, keyPct: Math.round(v * 100) } }),
   },
   tension: {
-    key: 'tension', name: '情绪张力', left: '平静克制', right: '紧张失衡',
+    key: 'tension', name: 'Emotional tension', left: 'Calm restraint', right: 'Tense · unbalanced',
     read: (d) => clamp((d.color.contrast + 10) / 50, 0, 1),
-    label: (v) => (v < 0.4 ? '平静' : v < 0.6 ? '中性' : '紧张·失衡'),
+    label: (v) => (v < 0.4 ? 'Calm' : v < 0.6 ? 'Neutral' : 'Tense · unbalanced'),
     apply: (d, v) => ({ ...d, color: { ...d.color, contrast: Math.round(lerp(-10, 40, v)) } }),
   },
   warmth: {
-    key: 'warmth', name: '光色情绪', left: '冷峻保留', right: '温暖靠近',
+    key: 'warmth', name: 'Light-color mood', left: 'Cool · reserved', right: 'Warm · close',
     read: (d) => d.lighting.temperature ?? 0.5,
-    label: (v) => (v < 0.4 ? '偏冷峻' : v < 0.6 ? '中性' : '偏温暖'),
+    label: (v) => (v < 0.4 ? 'Cooler' : v < 0.6 ? 'Neutral' : 'Warmer'),
     apply: (d, v) => ({
       ...d,
       lighting: { ...d.lighting, temperature: Math.round(v * 100) / 100 },
@@ -65,24 +65,24 @@ export const PARAMS: Record<string, DesignParam> = {
     }),
   },
   pace: {
-    key: 'pace', name: '运动节奏', left: '凝滞克制', right: '推进流动',
+    key: 'pace', name: 'Motion pace', left: 'Held · restrained', right: 'Driving · flowing',
     read: (d) => (d.movement.type === 'Static' ? 0.15 : d.movement.type === 'Dolly In' || d.movement.type === 'Dolly Out' ? 0.6 : 0.85),
-    label: (v) => (v < 0.35 ? '固定·凝滞' : v < 0.7 ? '缓慢推进' : '明显运动'),
+    label: (v) => (v < 0.35 ? 'Static · held' : v < 0.7 ? 'Slow push-in' : 'Clear motion'),
     apply: (d, v) => ({ ...d, movement: { ...d.movement, type: v < 0.35 ? 'Static' : v < 0.7 ? 'Dolly In' : 'Truck' } }),
   },
 }
 
 export const ALL_PARAM_KEYS = Object.keys(PARAMS)
 
-// dims → a plain-language "how it's realized" descriptor line (实现方式)
+// dims → a plain-language "how it's realized" descriptor line
 export function realizationLine(d: SevenDims): string {
-  const sizeCN = ({ 'Extreme Wide': '大远景', Wide: '全景', Medium: '中景', 'Medium Close-Up': '中近景', 'Close-Up': '近景', 'Extreme Close-Up': '大特写' } as Record<string, string>)[d.shotSize] ?? d.shotSize
-  const view = d.angle.pitch > 8 ? '俯视' : d.angle.pitch < -8 ? '仰视' : '平视'
-  const dofW = d.focal.dof < 0.4 ? '浅景深' : d.focal.dof > 0.6 ? '深景深' : '中景深'
-  const move = d.movement.type === 'Static' ? '稳定机位' : d.movement.type === 'Dolly In' ? '缓慢推进' : d.movement.type === 'Dolly Out' ? '缓慢拉远' : `${d.movement.type}`
-  const comp = (d.composition.focus?.x ?? 0.5) < 0.42 ? '人物偏左构图' : (d.composition.focus?.x ?? 0.5) > 0.58 ? '人物偏右构图' : '人物居中构图'
-  const color = (d.color.look || '').toLowerCase().includes('warm') ? '暖色调' : (d.color.look || '').toLowerCase().includes('teal') ? '青橙调' : '冷色调'
-  const con = d.color.contrast > 15 ? '高对比' : d.color.contrast < -15 ? '低对比' : '中对比'
-  const blur = d.focal.dof < 0.35 ? '背景强虚化' : d.focal.dof < 0.6 ? '轻微背景虚化' : '前后清晰'
-  return [sizeCN, view, dofW, move, '焦点在人物', comp, color, con, blur].join('，')
+  const size = ({ 'Extreme Wide': 'Extreme Wide', Wide: 'Wide', Medium: 'Medium', 'Medium Close-Up': 'Medium Close-Up', 'Close-Up': 'Close-Up', 'Extreme Close-Up': 'Extreme Close-Up' } as Record<string, string>)[d.shotSize] ?? d.shotSize
+  const view = d.angle.pitch > 8 ? 'High angle' : d.angle.pitch < -8 ? 'Low angle' : 'Eye level'
+  const dofW = d.focal.dof < 0.4 ? 'Shallow DoF' : d.focal.dof > 0.6 ? 'Deep DoF' : 'Medium DoF'
+  const move = d.movement.type === 'Static' ? 'Static camera' : d.movement.type === 'Dolly In' ? 'Slow push-in' : d.movement.type === 'Dolly Out' ? 'Slow pull-out' : `${d.movement.type}`
+  const comp = (d.composition.focus?.x ?? 0.5) < 0.42 ? 'Subject left' : (d.composition.focus?.x ?? 0.5) > 0.58 ? 'Subject right' : 'Subject centered'
+  const color = (d.color.look || '').toLowerCase().includes('warm') ? 'Warm tone' : (d.color.look || '').toLowerCase().includes('teal') ? 'Teal & orange' : 'Cool tone'
+  const con = d.color.contrast > 15 ? 'High contrast' : d.color.contrast < -15 ? 'Low contrast' : 'Mid contrast'
+  const blur = d.focal.dof < 0.35 ? 'Strong background blur' : d.focal.dof < 0.6 ? 'Slight background blur' : 'Front-to-back sharp'
+  return [size, view, dofW, move, 'Focus on subject', comp, color, con, blur].join(', ')
 }

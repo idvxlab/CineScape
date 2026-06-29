@@ -22,7 +22,7 @@ export interface SevenDims {
   rhythm: { curve: { x: number; y: number }[] }
   // pos: light position on canvas (normalized); softness 0=hard→1=soft; temperature 0=cool→1=warm; spread 0=spot→1=flood
   lighting: { direction: string; keyPct: number; ratio: number; pos?: { x: number; y: number }; softness?: number; temperature?: number; spread?: number }
-  color: { look: string; contrast: number; saturation: number; tint?: number } // tint: −50 绿 ↔ +50 品红
+  color: { look: string; contrast: number; saturation: number; tint?: number } // tint: −50 green ↔ +50 magenta
   focal: { mm: number; dof: number } // dof: 0 shallow depth of field → 1 deep depth of field
 }
 

@@ -21,7 +21,7 @@ export function AlignmentPanel({ widgets, onSubmit, disabled }: {
         disabled={disabled || !answered}
         onClick={() => { onSubmit(responses, summarize(widgets, responses)); setResponses({}) }}
       >
-        提交回答
+        Submit
       </button>
     </div>
   )
@@ -39,9 +39,9 @@ function summarize(widgets: Widget[], responses: Record<string, string | string[
     if (r == null || (Array.isArray(r) && r.length === 0)) return
     if (w.kind === 'single' || w.kind === 'multi') {
       const vals = Array.isArray(r) ? r : [r]
-      parts.push(vals.map((v) => w.options.find((o) => o.value === v)?.label ?? v).join('、'))
+      parts.push(vals.map((v) => w.options.find((o) => o.value === v)?.label ?? v).join(', '))
     } else {
-      parts.push(Array.isArray(r) ? r.join('、') : String(r))
+      parts.push(Array.isArray(r) ? r.join(', ') : String(r))
     }
   })
   return parts.join(' · ') || '(answered)'
@@ -62,8 +62,8 @@ function WidgetView({ w, onAnswer, disabled }: { w: Widget; onAnswer: (v: string
         <div>
           <p className="mb-1.5 text-[12px] font-medium text-gray-700">{w.reflection}</p>
           <div className="flex gap-1.5">
-            <button className="rounded bg-green-500/90 px-2.5 py-1 text-[11px] text-white" disabled={disabled} onClick={() => onAnswer('yes')}>是</button>
-            <button className="rounded bg-amber-500/90 px-2.5 py-1 text-[11px] text-white" disabled={disabled} onClick={() => onAnswer('no')}>否</button>
+            <button className="rounded bg-green-500/90 px-2.5 py-1 text-[11px] text-white" disabled={disabled} onClick={() => onAnswer('yes')}>Yes</button>
+            <button className="rounded bg-amber-500/90 px-2.5 py-1 text-[11px] text-white" disabled={disabled} onClick={() => onAnswer('no')}>No</button>
           </div>
         </div>
       )
@@ -107,9 +107,9 @@ function Slider({ prompt, ends, ticks, onAnswer, disabled }: {
   const describe = (v: number): string => {
     const [left, right] = ends
     const lc = ticks?.[0], rc = ticks?.[ticks.length - 1]
-    if (v < 40) return `${v < 15 ? '强烈' : '偏向'}${left}${lc ? `(${lc})` : ''}`
-    if (v > 60) return `${v > 85 ? '强烈' : '偏向'}${right}${rc ? `(${rc})` : ''}`
-    return `两者均衡(介于 ${left} 与 ${right} 之间)`
+    if (v < 40) return `${v < 15 ? 'Strongly ' : 'Toward '}${left}${lc ? `(${lc})` : ''}`
+    if (v > 60) return `${v > 85 ? 'Strongly ' : 'Toward '}${right}${rc ? `(${rc})` : ''}`
+    return `Balanced (between ${left} and ${right})`
   }
   return (
     <div>
@@ -142,7 +142,7 @@ function FreeText({ prompt, suggestions, onAnswer, disabled }: {
       )}
       <textarea
         className="w-full rounded-lg border border-[#e3e6ea] px-2 py-1.5 text-[12px] outline-none focus:border-brand"
-        rows={2} placeholder="输入你的回答…" value={text} disabled={disabled}
+        rows={2} placeholder="Type your answer…" value={text} disabled={disabled}
         onChange={(e) => update(e.target.value)}
       />
     </div>

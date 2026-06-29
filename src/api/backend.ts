@@ -3,7 +3,7 @@
 
 const BASE = ((import.meta as any).env?.VITE_API_BASE as string) || 'http://localhost:8000/api'
 const ORIGIN = BASE.replace(/\/api\/?$/, '') // http://localhost:8000 — for /api/uploads asset URLs
-const TIMEOUT_MS = 1_800_000 // 30 min — scheme reasoning + 即梦 render fan out over many slow calls
+const TIMEOUT_MS = 1_800_000 // 30 min — scheme reasoning + Dreamina render fan out over many slow calls
 
 // absolute URL for a backend-relative asset (/api/uploads/...)
 export const assetUrl = (u?: string | null): string | undefined =>
@@ -32,7 +32,7 @@ export interface SchemeShot {
   duration: string
   serves: string[]
   rationale: string
-  frame_image?: string | null // rendered keyframe (即梦 image2image)
+  frame_image?: string | null // rendered keyframe (Dreamina image2image)
   frame_video?: string | null // per-shot video
 }
 // one A/B/C candidate (a complete shot script)
@@ -155,14 +155,14 @@ export const selectScheme = (sessionId: string, schemeId: string, action: 'edit'
 // apply field-level edits to the selected scheme (revalidates, returns to candidates)
 export const editScheme = (sessionId: string, patch: PatchOp[], freeText?: string) =>
   postJson<IntentTurn>(`/sessions/${sessionId}/edit`, { patch, free_text: freeText })
-// render keyframe images (即梦 image2image). shotOrder set = re-render just that one shot.
+// render keyframe images (Dreamina image2image). shotOrder set = re-render just that one shot.
 // patch = the local edits to apply at render time (no need to round-trip the graph edit interrupt).
 export const renderScheme = (sessionId: string, schemeId: string, shotOrder?: number, patch: PatchOp[] = []) =>
   postJson<{ scheme: ShotScript }>(`/sessions/${sessionId}/render`, { scheme_id: schemeId, shot_order: shotOrder ?? null, patch })
-// compose the scheme video (即梦 image2video) — returns the scheme with scheme_video filled.
+// compose the scheme video (Dreamina image2video) — returns the scheme with scheme_video filled.
 // patch = local edits to apply so the video prompt (movement/rhythm) reflects them too.
 export const animateScheme = (sessionId: string, schemeId: string, patch: PatchOp[] = []) =>
   postJson<{ scheme: ShotScript }>(`/sessions/${sessionId}/animate`, { scheme_id: schemeId, patch })
-// 即梦 removes the person from the uploaded photo → a clean empty-scene background plate
+// Dreamina removes the person from the uploaded photo → a clean empty-scene background plate
 export const makeBackplate = (sessionId: string) =>
   postJson<{ url: string }>(`/sessions/${sessionId}/backplate`, {})

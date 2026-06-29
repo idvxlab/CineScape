@@ -74,7 +74,7 @@ const ZONES: { max: number; size: ShotSize }[] = [
   { max: Infinity, size: 'Extreme Wide' },
 ]
 export const DIST_MIN = 1
-export const DIST_MAX = 40 // 最远机位距离(大远景能拉得更远);ZONES 的 >20 大远景区间随之延伸到 40m
+export const DIST_MAX = 40 // farthest camera distance (extreme wide can pull further); the >20 extreme-wide range in ZONES extends to 40m accordingly
 export const PITCH_MIN = -90
 export const PITCH_MAX = 90
 

@@ -48,7 +48,7 @@ const visR = (d: number) => DIST_VIS_MIN + ((clamp(d, DIST_MIN, DIST_MAX) - DIST
 const invVisR = (R: number) => DIST_MIN + ((clamp(R, DIST_VIS_MIN, DIST_VIS_MAX) - DIST_VIS_MIN) / (DIST_VIS_MAX - DIST_VIS_MIN)) * (DIST_MAX - DIST_MIN)
 
 // ---- mappings -------------------------------------------------------------
-// lighting.pos (画面方位/高度, 0..1) ↔ world position on a sphere around the orbit center
+// lighting.pos (screen azimuth/height, 0..1) ↔ world position on a sphere around the orbit center
 function posToWorld(pos: { x: number; y: number }, c: THREE.Vector3): THREE.Vector3 {
   const az = (pos.x - 0.5) * Math.PI
   const el = (1 - pos.y) * (Math.PI / 2) + 0.25
@@ -566,7 +566,7 @@ function SceneLight({ lighting, center }: { lighting: SevenDims['lighting']; cen
 // ---- standing photo backdrop: FIXED in the world, behind the subject along world −z.
 //      The camera orbits the subject freely; a front shot frames the subject against the backdrop,
 //      while a reverse angle swings the rig to the far side and the backdrop leaves the frame
-//      (exactly as a fixed set wall behaves — so 反打/reverse shots are possible). --
+//      (exactly as a fixed set wall behaves — so reverse shots are possible). --
 function BackdropWall({ url, reverse = false }: { url: string; reverse?: boolean }) {
   // give the WebGL texture its own URL (a distinct cache key) so it does a fresh CORS fetch instead of
   // reusing a non-CORS cached copy left by an <img> tag (which would fail the crossOrigin texture load).
@@ -627,7 +627,7 @@ function ReverseBackdrop({ anchor, center }: { anchor: Anchor; center: THREE.Vec
       <Line points={rect} color="#c9d0d8" lineWidth={1.4} dashed dashSize={0.6} gapSize={0.5} transparent opacity={0.5} depthTest={false} renderOrder={3} />
       <Html position={[0, h * 0.62, 0]} center zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
         <div className="whitespace-nowrap rounded-md border border-white/25 bg-black/35 px-2 py-1 text-[11px] font-medium tracking-wide text-white/75 backdrop-blur">
-          反向背景域 · Reverse BG
+          Reverse BG
         </div>
       </Html>
     </group>
@@ -799,7 +799,7 @@ function Viewfinder({ backdropUrl, dims, anchor }: { backdropUrl: string; dims: 
         // frosted domain (the reverse-background container), not the photo.
         <div className="absolute inset-0" style={{ background: 'radial-gradient(125% 125% at 50% 38%, #5c6470 0%, #353b44 55%, #20252c 100%)' }}>
           <div className="absolute inset-2 rounded border border-dashed border-white/25" />
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-medium tracking-wide text-white/55">反向背景域 · Reverse BG</div>
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-medium tracking-wide text-white/55">Reverse BG</div>
         </div>
       )}
       <div className="absolute" style={{ left: `${focus.x * 100}%`, top: `${focus.y * 100}%`, width: `${sizeFrac * 58}%`, height: `${sizeFrac * 100}%`, transform: 'translate(-50%, -50%)' }}>

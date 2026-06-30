@@ -310,8 +310,9 @@ function conciseHint(d: SevenDims): string {
     : sz === 'Extreme Wide' ? '改成大远景，主体在画面中很小、环境主导画面'
     : `改成${SIZE_CN[sz] ?? sz}`,
   )
-  if (d.focal.dof < 0.34) parts.push('浅景深、背景明显虚化')
-  else if (d.focal.dof > 0.66) parts.push('深景深、前后都清晰')
+  // 阈值对齐控件 dofMeaning(Shallow<0.4 / Deep>0.6),否则 dof∈[0.34,0.4) 时控件显示 Shallow 但 prompt 漏掉"浅景深"
+  if (d.focal.dof < 0.4) parts.push('浅景深、背景明显虚化（只有主体清晰、背景化为柔和虚影）')
+  else if (d.focal.dof > 0.6) parts.push('深景深、前后景都清晰')
   // 垂直角度(俯仰):分级 + 明确镜头语言
   const p = d.angle.pitch
   if (p <= -22) parts.push('低角度仰拍、镜头明显朝上，强化主体的高大与压迫感')

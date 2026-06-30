@@ -4,6 +4,10 @@ import { useEditor } from '../../state/useEditor'
 import type { ChatMessage } from '../../api/types'
 import { respond, confirmIntent, type IntentTurn, type OnReasoning } from '../../api/backend'
 import { AlignmentPanel } from './AlignmentWidgets'
+import { CODEBOOK } from '../../lib/designSpace'
+
+// Replace design-space codes (e.g. 10.2) in user-facing text with their English intent names.
+const nameCodes = (t: string) => t.replace(/(\d+\.\d+)/g, (m) => CODEBOOK[m]?.l2 ?? m)
 
 type Msg = ChatMessage & { reasoning?: boolean }
 
@@ -57,7 +61,7 @@ export function IntentChat() {
 
   // project a backend turn into the chat: reflection = normal reply (the streamed thinking is transient)
   const applyTurn = (t: IntentTurn) => {
-    if (t.reflection) push('assistant', t.reflection)
+    if (t.reflection) push('assistant', nameCodes(t.reflection))
     setTurn(t.phase === 'align' || t.phase === 'confirm' ? t : null)
     if (t.tags?.length) setTags(t.tags)
   }
@@ -155,7 +159,7 @@ export function IntentChat() {
         {/* converged brief + tags → accept or refine */}
         {turn?.phase === 'confirm' && (
           <div className="space-y-2 rounded-lg border border-[#cfe8d6] bg-[#f6fbf7] p-2.5">
-            {turn.brief && <p className="text-[12px] leading-relaxed text-gray-700">{turn.brief}</p>}
+            {turn.brief && <p className="text-[12px] leading-relaxed text-gray-700">{nameCodes(turn.brief)}</p>}
             {turn.tags && turn.tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {turn.tags.map((t) => <span key={t} className="rounded bg-brand-soft px-1.5 py-0.5 text-[11px] font-medium text-brand">{t}</span>)}
@@ -168,16 +172,8 @@ export function IntentChat() {
           </div>
         )}
 
-        {/* live streamed reasoning — gray, transient (disappears once the result arrives) */}
-        {loading && live && (
-          <div className="flex gap-2">
-            <div className="grid h-7 w-7 flex-none animate-pulse place-items-center rounded-full bg-[#f1f3f6] text-xs text-gray-400">💭</div>
-            <div ref={liveRef} className="max-h-40 max-w-[82%] overflow-auto whitespace-pre-wrap rounded-xl border border-dashed border-[#e6e9ed] bg-[#fafbfc] px-3 py-2 text-[12px] italic leading-relaxed text-gray-400">
-              {live}
-            </div>
-          </div>
-        )}
-        {loading && !live && (
+        {/* thinking indicator — the raw reasoning stream is hidden because it is in Chinese */}
+        {loading && (
           <div className="flex items-center gap-2 text-[12px] text-gray-400">
             <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-brand-soft border-t-brand" />
             Thinking…

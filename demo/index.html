@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CineDesign Demo · 「希区柯克式悬疑」重拍摄方案</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+QingKe+HuangYou&family=ZCOOL+XiaoWei&family=Noto+Serif+SC:wght@400;600;900&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0a0e15;
+    --panel: #10161f;
+    --panel-2: #141c28;
+    --line: #1f2937;
+    --fog: #e8edf4;
+    --mist: #93a1b3;
+    --dim: #5b6878;
+    --red: #e63b2e;
+    --red-deep: #a8261d;
+    --cyan: #7fb4c9;
+    --serif: "Noto Serif SC", serif;
+    --disp: "ZCOOL QingKe HuangYou", "Noto Serif SC", sans-serif;
+    --xiaowei: "ZCOOL XiaoWei", serif;
+    --mono: "IBM Plex Mono", monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--ink);
+    color: var(--fog);
+    font-family: var(--serif);
+    line-height: 1.85;
+    overflow-x: hidden;
+  }
+  /* 胶片颗粒 */
+  body::after {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 999;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+    opacity: 0.05; mix-blend-mode: overlay;
+  }
+  ::selection { background: var(--red); color: #fff; }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 32px; }
+
+  /* ───────── HERO ───────── */
+  .hero {
+    position: relative; min-height: 92vh;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    isolation: isolate; padding-bottom: 9vh;
+  }
+  .hero::before {
+    content: ""; position: absolute; inset: 0; z-index: -2;
+    background: url("input.jpeg") center 35% / cover no-repeat;
+    filter: saturate(0.7) brightness(0.65);
+  }
+  .hero::after {
+    content: ""; position: absolute; inset: 0; z-index: -1;
+    background:
+      linear-gradient(180deg, rgba(10,14,21,0.55) 0%, rgba(10,14,21,0.25) 40%, var(--ink) 96%),
+      radial-gradient(120% 70% at 70% 20%, transparent 50%, rgba(10,14,21,0.6) 100%);
+  }
+  .brand {
+    position: absolute; top: 34px; left: 0; right: 0;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 16px; flex-wrap: wrap;
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.26em;
+    color: var(--mist); text-transform: uppercase;
+    padding: 0 40px; white-space: nowrap;
+  }
+  .brand b { color: var(--fog); font-weight: 600; }
+  .brand .reel { color: var(--red); }
+  .kicker {
+    display: inline-flex; align-items: center; gap: 14px;
+    font-family: var(--mono); font-size: 13px; letter-spacing: 0.3em;
+    color: var(--cyan); margin-bottom: 22px;
+    animation: rise 0.9s 0.1s cubic-bezier(.2,.7,.2,1) both;
+  }
+  .kicker::before { content: ""; width: 46px; height: 2px; background: var(--red); }
+  h1.title {
+    font-family: var(--disp); font-weight: 400;
+    font-size: clamp(46px, 7.2vw, 96px); line-height: 1.08;
+    letter-spacing: 0.02em; margin-bottom: 18px;
+    animation: rise 0.9s 0.25s cubic-bezier(.2,.7,.2,1) both;
+  }
+  h1 .q { color: var(--red); }
+  .hero-sub {
+    max-width: 660px; color: var(--mist); font-size: 17px;
+    animation: rise 0.9s 0.4s cubic-bezier(.2,.7,.2,1) both;
+  }
+  .hero-meta {
+    display: flex; gap: 38px; margin-top: 38px; flex-wrap: wrap;
+    font-family: var(--mono); font-size: 12.5px; color: var(--dim);
+    animation: rise 0.9s 0.55s cubic-bezier(.2,.7,.2,1) both;
+  }
+  .hero-meta b { display: block; color: var(--fog); font-size: 21px; font-weight: 600; }
+  @keyframes rise { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: none; } }
+
+  /* ───────── 章节骨架 ───────── */
+  section.chapter { padding: 96px 0 30px; }
+  .ch-head { display: flex; align-items: baseline; gap: 26px; margin-bottom: 14px; }
+  .ch-no {
+    font-family: var(--disp); font-size: clamp(64px, 8vw, 110px);
+    color: transparent; -webkit-text-stroke: 1.5px var(--red);
+    line-height: 0.9; flex: none;
+  }
+  .ch-title { font-family: var(--disp); font-size: clamp(30px, 3.6vw, 46px); letter-spacing: 0.04em; }
+  .ch-sub { color: var(--dim); font-family: var(--mono); font-size: 13px; letter-spacing: 0.22em; margin-left: 4px; }
+  .rule { height: 2px; background: linear-gradient(90deg, var(--red) 0 120px, var(--line) 120px); margin: 26px 0 44px; }
+
+  /* 滚动浮现 */
+  .rv { opacity: 0; transform: translateY(30px); transition: opacity 0.8s cubic-bezier(.2,.7,.2,1), transform 0.8s cubic-bezier(.2,.7,.2,1); }
+  .rv.in { opacity: 1; transform: none; }
+
+  /* ───────── 01 输入 ───────── */
+  .input-grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 44px; align-items: stretch; }
+  .base-figure { position: relative; }
+  .base-figure img {
+    width: 100%; display: block; border: 1px solid var(--line);
+  }
+  .base-figure figcaption {
+    position: absolute; left: 0; bottom: 0; background: var(--ink);
+    font-family: var(--mono); font-size: 12px; color: var(--cyan);
+    padding: 8px 16px 8px 0; letter-spacing: 0.18em;
+  }
+  .intent-card { display: flex; flex-direction: column; justify-content: center; gap: 26px; }
+  .intent-quote {
+    font-family: var(--xiaowei); font-size: clamp(28px, 3vw, 40px); line-height: 1.5;
+    border-left: 3px solid var(--red); padding-left: 26px;
+  }
+  .intent-quote small { display: block; font-family: var(--mono); font-size: 12px; color: var(--dim); letter-spacing: 0.25em; margin-top: 14px; }
+  .axiom { color: var(--mist); font-size: 15.5px; }
+  .axiom em { color: var(--fog); font-style: normal; border-bottom: 1px solid var(--red); padding-bottom: 1px; }
+
+  /* ───────── 02 对齐 ───────── */
+  .align-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 44px; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line); padding: 30px 32px;
+    position: relative;
+  }
+  .panel-label {
+    position: absolute; top: -11px; left: 24px; background: var(--ink);
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.3em;
+    color: var(--red); padding: 0 12px; text-transform: uppercase;
+  }
+  .panel p { color: var(--mist); font-size: 15px; }
+  .panel p strong { color: var(--fog); font-weight: 600; }
+  .tag-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .tag-card {
+    background: var(--panel-2); border: 1px solid var(--line); padding: 24px 24px 20px;
+    position: relative; overflow: hidden; transition: transform .4s, border-color .4s;
+  }
+  .tag-card:hover { transform: translateY(-5px); border-color: var(--red); }
+  .tag-card::after {
+    content: attr(data-code); position: absolute; right: -8px; bottom: -26px;
+    font-family: var(--disp); font-size: 92px; color: rgba(230,59,46,0.09); line-height: 1;
+  }
+  .tag-code { font-family: var(--mono); font-size: 13px; color: var(--red); letter-spacing: 0.2em; }
+  .tag-name { font-family: var(--disp); font-size: 24px; margin: 6px 0 4px; }
+  .tag-dim { font-family: var(--mono); font-size: 11.5px; color: var(--cyan); letter-spacing: 0.14em; margin-bottom: 10px; }
+  .tag-def { color: var(--mist); font-size: 13.5px; line-height: 1.75; }
+
+  /* ───────── 03 方案总览 ───────── */
+  .ov-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .ov-card {
+    background: var(--panel); border: 1px solid var(--line); padding: 28px;
+    text-decoration: none; color: inherit; display: block;
+    transition: transform .4s, border-color .4s;
+  }
+  .ov-card:hover { transform: translateY(-6px); border-color: var(--red); }
+  .ov-letter { font-family: var(--disp); font-size: 56px; color: var(--red); line-height: 1; }
+  .ov-name { font-family: var(--disp); font-size: 23px; margin: 12px 0 8px; }
+  .ov-mech { color: var(--mist); font-size: 13.5px; min-height: 92px; }
+  .ov-stats { font-family: var(--mono); font-size: 12px; color: var(--dim); margin-top: 16px; letter-spacing: 0.1em; }
+  .ov-stats span { color: var(--cyan); }
+
+  /* ───────── 方案章 ───────── */
+  .scheme { padding-top: 80px; }
+  .scheme-head { display: flex; align-items: baseline; gap: 22px; flex-wrap: wrap; }
+  .scheme-letter {
+    font-family: var(--disp); font-size: clamp(80px, 9vw, 130px); line-height: 0.85;
+    color: var(--red); flex: none;
+  }
+  .scheme-head h3 { font-family: var(--disp); font-size: clamp(28px, 3.4vw, 42px); font-weight: 400; }
+  .scheme-tags { display: flex; gap: 8px; margin-left: auto; }
+  .chip {
+    font-family: var(--mono); font-size: 12px; color: var(--cyan);
+    border: 1px solid var(--line); padding: 3px 12px; border-radius: 99px; letter-spacing: 0.1em;
+  }
+  .scheme-mech { max-width: 860px; color: var(--mist); margin: 18px 0 38px; font-size: 15.5px; }
+
+  /* 胶片条 */
+  .filmstrip {
+    --hole: radial-gradient(circle, var(--ink) 0 3.5px, transparent 4px);
+    background: #05070b; border: 1px solid var(--line);
+    padding: 26px 18px; position: relative; overflow-x: auto;
+    display: flex; gap: 14px;
+  }
+  .filmstrip::before, .filmstrip::after {
+    content: ""; position: absolute; left: 0; right: 0; height: 12px;
+    background-image: radial-gradient(circle, #1b2433 0 3.4px, transparent 4px);
+    background-size: 26px 12px; background-position: 12px center; background-repeat: repeat-x;
+  }
+  .filmstrip::before { top: 7px; }
+  .filmstrip::after { bottom: 7px; }
+  .filmstrip { scrollbar-color: #2a3648 transparent; scrollbar-width: thin; }
+  .filmstrip::-webkit-scrollbar { height: 8px; }
+  .filmstrip::-webkit-scrollbar-track { background: transparent; }
+  .filmstrip::-webkit-scrollbar-thumb { background: #2a3648; border-radius: 4px; }
+  .filmstrip a { flex: none; position: relative; }
+  .filmstrip img {
+    height: 168px; display: block; border: 1px solid #1c2635;
+    transition: transform .35s, border-color .35s; cursor: zoom-in;
+  }
+  .filmstrip a:hover img { transform: scale(1.04); border-color: var(--red); }
+  .filmstrip .fno {
+    position: absolute; top: 8px; left: 8px; font-family: var(--mono); font-size: 11px;
+    background: rgba(10,14,21,0.82); color: var(--red); padding: 2px 8px; letter-spacing: 0.18em;
+  }
+
+  /* 逐镜卡 */
+  .shot {
+    display: grid; grid-template-columns: minmax(0, 1.18fr) minmax(0, 1fr);
+    gap: 0; border: 1px solid var(--line); background: var(--panel);
+    margin-top: 34px; overflow: hidden;
+  }
+  .shot:nth-child(even of .shot) .shot-img { order: 2; }
+  .shot-img { position: relative; min-height: 300px; }
+  .shot-img img {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    cursor: zoom-in; transition: transform 0.6s;
+  }
+  .shot-img:hover img { transform: scale(1.03); }
+  .shot-no {
+    position: absolute; top: 16px; left: 16px; z-index: 2;
+    font-family: var(--disp); font-size: 30px; color: #fff;
+    background: var(--red); width: 54px; height: 54px;
+    display: grid; place-items: center;
+  }
+  .shot-body { padding: 30px 34px 28px; display: flex; flex-direction: column; gap: 16px; }
+  .params { display: flex; flex-wrap: wrap; gap: 8px; }
+  .p-chip {
+    font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.06em;
+    border: 1px solid var(--line); background: var(--panel-2);
+    color: var(--fog); padding: 5px 13px;
+  }
+  .p-chip b { color: var(--cyan); font-weight: 400; margin-right: 7px; }
+  /* 时长节奏条 */
+  .dur { display: flex; align-items: center; gap: 12px; font-family: var(--mono); font-size: 12px; color: var(--dim); }
+  .dur-track { flex: 1; height: 4px; background: var(--line); position: relative; }
+  .dur-bar {
+    position: absolute; inset: 0 auto 0 0; width: calc(var(--s) / 32 * 100%);
+    background: linear-gradient(90deg, var(--red-deep), var(--red));
+    transform-origin: left; transform: scaleX(0); transition: transform 1.1s 0.2s cubic-bezier(.2,.7,.2,1);
+  }
+  .in .dur-bar { transform: scaleX(1); }
+  .dur-val { color: var(--red); font-weight: 600; }
+  .hint {
+    border-left: 3px solid var(--red); background: rgba(230,59,46,0.06);
+    padding: 14px 18px; font-size: 14px; color: var(--fog); line-height: 1.8;
+  }
+  .hint::before { content: "重摄指令"; display: block; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.3em; color: var(--red); margin-bottom: 6px; }
+  details.chain { border-top: 1px dashed var(--line); padding-top: 12px; }
+  details.chain summary {
+    cursor: pointer; font-family: var(--mono); font-size: 12px; letter-spacing: 0.22em;
+    color: var(--dim); list-style: none; display: flex; align-items: center; gap: 10px;
+  }
+  details.chain summary::before { content: "▸"; color: var(--red); transition: transform .3s; }
+  details[open].chain summary::before { transform: rotate(90deg); }
+  details.chain summary:hover { color: var(--cyan); }
+  details.chain p { color: var(--mist); font-size: 13.5px; margin-top: 12px; line-height: 1.85; }
+
+  .seq-note {
+    margin-top: 36px; padding: 28px 32px; background: var(--panel-2);
+    border: 1px solid var(--line); border-top: 2px solid var(--red);
+    color: var(--mist); font-size: 14px;
+  }
+  .seq-note b { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.3em; color: var(--red); margin-bottom: 10px; }
+
+  /* ───────── 尾注 ───────── */
+  .pipeline {
+    margin: 110px 0 0; border-top: 1px solid var(--line); padding: 60px 0 80px;
+    text-align: center;
+  }
+  .pipeline .flow {
+    font-family: var(--mono); font-size: 13px; color: var(--mist); letter-spacing: 0.06em;
+    display: flex; justify-content: center; flex-wrap: wrap; gap: 10px 0; margin: 26px 0 34px;
+  }
+  .flow i { font-style: normal; padding: 7px 16px; border: 1px solid var(--line); }
+  .flow em { font-style: normal; color: var(--red); padding: 7px 8px; }
+  .credits { font-family: var(--mono); font-size: 11.5px; color: var(--dim); letter-spacing: 0.2em; line-height: 2.4; }
+  .credits b { color: var(--mist); font-weight: 400; }
+
+  /* 灯箱 */
+  dialog#lb { border: none; background: rgba(5,7,11,0.93); max-width: 100vw; max-height: 100vh; width: 100vw; height: 100vh; display: grid; place-items: center; padding: 4vmin; }
+  dialog#lb:not([open]) { display: none; }
+  dialog#lb img { max-width: 92vw; max-height: 88vh; border: 1px solid var(--line); cursor: zoom-out; }
+  dialog#lb::backdrop { background: transparent; }
+
+  @media (max-width: 880px) {
+    .input-grid, .align-grid, .tag-row, .ov-grid { grid-template-columns: 1fr; }
+    .shot { grid-template-columns: 1fr; }
+    .shot:nth-child(even of .shot) .shot-img { order: 0; }
+    .shot-img { min-height: 230px; }
+    .scheme-tags { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ HERO ═══════════ -->
+<header class="hero">
+  <div class="brand">
+    <span><b>CINEDESIGN</b>&nbsp;&nbsp;DEMO&nbsp;REEL</span>
+    <span class="reel">⬤ REC&nbsp;&nbsp;SESSION 92CC47D0</span>
+  </div>
+  <div class="wrap">
+    <div class="kicker">导演意图 → 重拍摄方案 → 关键帧</div>
+    <h1 class="title">「<span class="q">希区柯克式悬疑</span>」<br>重拍摄方案</h1>
+    <p class="hero-sub">
+      一张静谧黄昏的湖畔背影,被一句意图彻底重摄。CineDesign 将模糊的导演意图对齐到
+      56 维设计空间,沿三条不同的心理机制路径生成镜头脚本,并以原图为基底逐镜渲染关键帧。
+    </p>
+    <div class="hero-meta">
+      <div><b>3</b>条机制路径</div>
+      <div><b>10</b>个镜头 / 关键帧</div>
+      <div><b>3</b>个意图坐标</div>
+      <div><b>1</b>张基底画面</div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ═══════════ 01 输入 ═══════════ -->
+  <section class="chapter" id="input">
+    <div class="ch-head rv"><span class="ch-no">01</span><div><div class="ch-title">输入:画面与意图</div><div class="ch-sub">BASE PLATE × DIRECTOR'S INTENT</div></div></div>
+    <div class="rule"></div>
+    <div class="input-grid">
+      <figure class="base-figure rv">
+        <img src="input.jpeg" alt="基底画面:黄昏湖畔的背影">
+        <figcaption>BASE PLATE · input.jpeg</figcaption>
+      </figure>
+      <div class="intent-card rv">
+        <blockquote class="intent-quote">
+          "我想要希区柯克式的悬疑感。"
+          <small>—— 用户原始意图</small>
+        </blockquote>
+        <p class="axiom">
+          基底画面只锚定<em>主体与空间</em>——背影人物、空旷水面、低垂云层;
+          画面现有的静谧黄昏只是现状。<em>拍摄风格完全服从意图</em>:
+          系统将把这份平静,重摄为悬而不发的威胁。
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ 02 对齐 ═══════════ -->
+  <section class="chapter" id="align">
+    <div class="ch-head rv"><span class="ch-no">02</span><div><div class="ch-title">意图对齐:落入设计空间</div><div class="ch-sub">INTENT ALIGNMENT · 12 × 56 DESIGN SPACE</div></div></div>
+    <div class="rule"></div>
+    <div class="align-grid">
+      <div class="panel rv">
+        <span class="panel-label">推理复述 · Reflection</span>
+        <p>用户意图"希区柯克式悬疑感"高度契合 <strong>8.3 悬念、1.2 紧张与 3.1 不祥氛围</strong>的组合。
+        经判别规则 [D] 检验,1.2(情绪紧绷态)与 8.3(对未来结果的认知焦灼)在希区柯克美学中互为表里,非互斥关系;
+        经规则 [A] 检验,1 为点状情绪激发,3 为面状心理气压,二者可并存且分别指导单镜节奏与全场景光影。
+        当前基底画面"背影 + 空旷水面"为信息差(暗示画外/水下威胁)提供了极佳载体。逻辑已闭环,可进入生成。</p>
+      </div>
+      <div class="panel rv">
+        <span class="panel-label">创作纲领 · Brief</span>
+        <p>以希区柯克式悬疑为核心,通过<strong>信息差策略(8.3)</strong>制造观众对未知结果的预期焦灼,
+        配合持续的<strong>心理紧绷(1.2)</strong>与笼罩全场的<strong>不祥气压(3.1)</strong>。
+        拍摄上采用限制性信息处理与极缓慢运镜/长镜,回避直接展示威胁源,利用画外空间、局部遮挡与环境音延长等待;
+        视觉基底强化冷峻低饱和色调、高反差阴影与空旷留白构图,使背影人物与平静水面形成压抑对比,
+        将原画面的静谧感彻底转化为悬疑张力。</p>
+      </div>
+    </div>
+    <div class="tag-row">
+      <div class="tag-card rv" data-code="8.3">
+        <div class="tag-code">TAG / 8.3</div>
+        <div class="tag-name">悬念</div>
+        <div class="tag-dim">信息管理 · 效果意图(B类)</div>
+        <p class="tag-def">对未知结果产生焦灼预期。希区柯克炸弹原理:观众知道角色不知道——信息差 + 时间延宕 = 焦灼。</p>
+      </div>
+      <div class="tag-card rv" data-code="1.2">
+        <div class="tag-code">TAG / 1.2</div>
+        <div class="tag-name">紧张 / 焦虑</div>
+        <div class="tag-dim">情绪唤起 · 效果意图(B类)</div>
+        <p class="tag-def">紧绷、焦灼的情绪张力——感受态而非信息悬念,点状激发,指导单镜节奏与生理性屏息。</p>
+      </div>
+      <div class="tag-card rv" data-code="3.1">
+        <div class="tag-code">TAG / 3.1</div>
+        <div class="tag-name">紧张 / 压抑 / 不祥</div>
+        <div class="tag-dim">氛围营造 · 效果意图(B类 · 整场作用域)</div>
+        <p class="tag-def">压迫、不祥、悬而未决的持续气压——面状底色,贯穿全部镜头的光影与色调纪律。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ 03 三条机制路径 ═══════════ -->
+  <section class="chapter" id="schemes">
+    <div class="ch-head rv"><span class="ch-no">03</span><div><div class="ch-title">同一意图,三条机制路径</div><div class="ch-sub">MECHANISM PATHS · NOT STYLE VARIANTS</div></div></div>
+    <div class="rule"></div>
+    <p class="axiom rv" style="max-width:840px; margin-bottom:40px;">
+      方向的多样性不来自表面风格,而来自<em>主导机制族不同</em>:同样的悬疑,可以经由空间、感知或时间三条心理通路抵达。
+    </p>
+    <div class="ov-grid">
+      <a class="ov-card rv" href="#scheme-a">
+        <div class="ov-letter">A</div>
+        <div class="ov-name">空间 / 画外暗示路径</div>
+        <p class="ov-mech">信息差的空间转译:观众凭环境线索认知威胁而角色无知,负空间与画外延伸制造认知先行。</p>
+        <div class="ov-stats"><span>4</span> 镜 · 总时长 <span>36s</span> · 8.3 / 3.1</div>
+      </a>
+      <a class="ov-card rv" href="#scheme-b">
+        <div class="ov-letter">B</div>
+        <div class="ov-name">感知 / 焦点剥夺路径</div>
+        <p class="ov-mech">浅焦虚化与紧框构图剥夺全景上下文,强制视觉聚焦受限视区,把未知转化为生理性屏息。</p>
+        <div class="ov-stats"><span>3</span> 镜 · 总时长 <span>35s</span> · 1.2 / 3.1 / 8.3</div>
+      </a>
+      <a class="ov-card rv" href="#scheme-c">
+        <div class="ov-letter">C</div>
+        <div class="ov-name">时间 / 节奏悬置路径</div>
+        <p class="ov-mech">单镜超长停留打破叙事舒适区,在"尚未发生"的真空里持续累积心理重压。</p>
+        <div class="ov-stats"><span>3</span> 镜 · 总时长 <span>75s</span> · 8.3 / 3.1</div>
+      </a>
+    </div>
+  </section>
+
+  <!-- ═══════════ 方案 A ═══════════ -->
+  <section class="scheme" id="scheme-a">
+    <div class="scheme-head rv">
+      <span class="scheme-letter">A</span>
+      <h3>空间 / 画外暗示路径</h3>
+      <div class="scheme-tags"><span class="chip">8.3 悬念</span><span class="chip">3.1 不祥</span></div>
+    </div>
+    <p class="scheme-mech rv">希区柯克信息差的空间转译:观众凭环境线索认知威胁而角色无知,利用负空间与画外延伸制造认知先行,时间延宕转化为焦灼。</p>
+
+    <div class="filmstrip rv">
+      <a href="92cc47d0-70cd-4036-b78f-fd5bc78c7039_A_s1.png" data-lb><span class="fno">A·S1</span><img src="92cc47d0-70cd-4036-b78f-fd5bc78c7039_A_s1.png" alt="A 镜头1"></a>
+      <a href="92cc47d0-70cd-4036-b78f-fd5bc78c7039_A_s2.png" data-lb><span class="fno">A·S2</span><img src="92cc47d0-70cd-4036-b78f-fd5bc78c7039_A_s2.png" alt="A 镜头2"></a>
+      <a href="92cc47d0-70cd-4036-b78f-fd5bc78c7039_A_s3.png" data-lb><span class="fno">A·S3</span><img src="92cc47d0-70cd-4036-b78f-fd5bc78c7039_A_s3.png" alt="A 镜头3"></a>
+      <a href="92cc47d0-70cd-4036-b78f-fd5bc78c7039_A_s4.png" data-lb><span class="fno">A·S4</span><img src="92cc47d0-70cd-4036-b78f-fd5bc78c7039_A_s4.png" alt="A 镜头4"></a>
+    </div>
+
+    <article class="shot rv">
+      <div class="shot-img"><span class="shot-no">1</span><img src="92cc47d0-70cd-4036-b78f-fd5bc78c7039_A_s1.png" data-lb alt="A1 关键帧"></div>
+      <div class="shot-body">
+        <div class="params"><span class="p-chip"><b>景别</b>大远景</span><span class="p-chip"><b>运镜</b>极缓横摇</span><span class="p-chip"><b>焦距</b>35mm</span><span class="p-chip"><b>景深</b>深</span></div>
+        <div class="dur"><span>节奏</span><div class="dur-track"><div class="dur-bar" style="--s:8"></div></div><span class="dur-val">8s</span></div>
+        <div class="hint">拉远至大远景,人物缩至画面左下角,右侧留白扩大至 2/3,整体压暗转冷蓝灰调,云层加重压向水面,水面增加微弱冷色反光。</div>
+        <details class="chain"><summary>机制链推理</summary>
+          <p>意图(3.1, 8.3)需建立压抑气压与初始信息差。机制上,微俯角与压低水平线压缩视觉空间制造低气压(3.1),大面积负空间作为"潜在威胁容器"使观众认知先行(8.3)。构成安排以大远景定调,人物孤立对比空旷水面。参数取值:35mm 广角维持真实空间透视,深景深确保水面波纹与云层细节清晰可读,成为环境"知情者"的线索载体;低调侧逆光将人物压为剪影,冷灰调抽离原画面静谧;8s 极缓横摇强制观众进入等待状态,为后续延宕奠基。</p>
+        </details>
+      </div>
+    </article>
+
+    <article class="shot rv">
+      <div class="shot-img"><span class="shot-no">2</span><img src="92cc47d0-70cd-4036-b78f-fd5bc78c7039_A_s2.png" data-lb alt="A2 关键帧"></div>
+      <div class="shot-body">
+        <div class="params"><span class="p-chip"><b>景别</b>中景</span><span class="p-chip"><b>运镜</b>极缓前推</span><span class="p-chip"><b>焦距</b>50mm</span><span class="p-chip"><b>景深</b>中深</span></div>
+        <div class="dur"><span>节奏</span><div class="dur-track"><div class="dur-bar" style="--s:10"></div></div><span class="dur-val">10s</span></div>
+        <div class="hint">景别推至中景,左侧前景添加模糊枯枝/暗礁遮挡 1/4 画面,人物保持居中偏左,整体色调偏冷绿灰,水面阴影加深,镜头缓慢向人物方向推进。</div>
+        <details class="chain"><summary>机制链推理</summary>
+          <p>意图(8.3, 1.2)需将信息差转化为生理焦虑。机制上,前景遮挡制造窥视感与呼吸受限(1.2),保留右侧负空间维持画外威胁暗示(8.3)。构成安排为中景 + 遮挡构图,镜头极缓前推收缩安全距离。参数取值:50mm 标准透视避免畸变干扰心理投射,中深焦确保前景遮挡轮廓可辨且人物与右侧水面同框清晰,维持"炸弹"线索不断链;冷绿灰调与低调顶侧光强化阴郁质感,10s 单镜拖长超出舒适停留时间,在"未发生"中制造持续煎熬。</p>
+        </details>
+      </div>
+    </article>
+
+    <article class="shot rv">
+      <div class="shot-img"><span class="shot-no">3</span><img src="92cc47d0-70cd-4036-b78f-fd5bc78c7039_A_s3.png" data-lb alt="A3 关键帧"></div>
+      <div class="shot-body">
+        <div class="params"><span class="p-chip"><b>景别</b>近景</span><span class="p-chip"><b>运镜</b>极微手持呼吸感</span><span class="p-chip"><b>焦距</b>85mm</span><span class="p-chip"><b>景深</b>浅</span></div>
+        <div class="dur"><span>节奏</span><div class="dur-track"><div class="dur-bar" style="--s:6"></div></div><span class="dur-val">6s</span></div>
+        <div class="hint">景别切至近景特写,聚焦人物背部与连帽衫领口,左侧背景彻底虚化为冷暗光斑,打高反差侧光突出衣物纹理与肩部轮廓,整体压暗转冷铁灰调,加入极微弱的镜头呼吸感。</div>
+        <details class="chain"><summary>机制链推理</summary>
+          <p>意图(1.2, 3.1)需聚焦个体紧绷与环境压迫的微观映射。机制上,紧张源于感官聚焦与空间幽闭(1.2),低调高反差维持低气压(3.1)。构成安排为近景特写,微仰视角加重被动承受的沉重感。参数取值:严格修正特写景别的光学耦合,采用 85mm + 浅景深,彻底虚化背景水面为冷色光斑,消除背景细节分散注意力的问题,将视觉强制锁死在静止的躯体与衣物纹理上;极微手持呼吸感模拟生理性屏息;冷铁色调与高反差侧光压缩视觉呼吸空间,6s 凝滞节奏制造短暂但尖锐的焦虑峰值。</p>
+        </details>
+      </div>
+    </article>
+
+    <article class="shot rv">
+      <div class="shot-img"><span class="shot-no">4</span><img src="92cc47d0-70cd-4036-b78f-fd5bc78c7039_A_s4.png" data-lb alt="A4 关键帧"></div>
+      <div class="shot-body">
+        <div class="params"><span class="p-chip"><b>景别</b>全景</span><span class="p-chip"><b>运镜</b>极缓右横移</span><span class="p-chip"><b>焦距</b>28mm</span><span class="p-chip"><b>景深</b>深</span></div>
+        <div class="dur"><span>节奏</span><div class="dur-track"><div class="dur-bar" style="--s:12"></div></div><span class="dur-val">12s</span></div>
+        <div class="hint">景别拉回全景,人物置于左侧 1/3,水面占满下方,右侧留白扩大至绝对空旷,镜头缓慢向右横移脱离人物,整体压至极暗灰蓝调,云层低垂贴近水面,消除直射光,强化阴冷漫射氛围。</div>
+        <details class="chain"><summary>机制链推理</summary>
+          <p>意图(8.3, 1.2, 3.1)需在序列尾声完成信息差的终极延宕与气压封锁。机制上,希区柯克焦灼依赖"威胁可感但结果未知"的持续悬停(8.3, 1.2),漫射低调光维持不祥氛围(3.1)。构成安排为全景 + 绝对留白主导,镜头极缓背离人物向画外滑移,暗示威胁源在视线外成型。参数取值:28mm 广角强化水面空旷与地平线隐没的压迫,深景深确保环境线索完整,为观众提供认知先行的视觉依据;灰蓝暗调消除明确光源方向,制造无处不在的阴冷监视感;12s 极限长镜配合匀速右移,彻底剥夺节奏释放可能,将等待转化为纯粹焦灼,完成机制闭环。</p>
+        </details>
+      </div>
+    </article>
+
+    <div class="seq-note rv"><b>序列总评 · Overall Rationale</b>
+      本序列严格遵循"信息差空间转译 → 时间延宕焦灼 → 低调光维持低气压"的三层机制链。首镜以大远景负空间建立"环境知情"的冷峻基底;次镜以前景遮挡与中深焦切入,制造视觉受限与画外威胁暗示;第三镜针对特写光学特性修正为浅景深,剥离背景干扰,将 1.2 的生理焦虑锁死于微观躯体;尾镜以广角深焦 + 极缓背离横移完成空间留白,将 8.3 的悬念彻底转化为无解的等待。全序列通过低饱和冷灰调、高反差阴影与极缓长镜,持续压制视觉与节奏释放,使原画面的静谧被重构为"威胁悬而不发"的希区柯克式悬疑场域。
+    </div>
+  </section>
+
+  <!-- ═══════════ 方案 B ═══════════ -->
+  <section class="scheme" id="scheme-b">
+    <div class="scheme-head rv">
+      <span class="scheme-letter">B</span>
+      <h3>感知 / 焦点剥夺路径</h3>
+      <div class="scheme-tags"><span class="chip">1.2 紧张</span><span class="chip">3.1 不祥</span><span class="chip">8.3 悬念</span></div>
+    </div>
+    <p class="scheme-mech rv">通过浅焦虚化与紧框构图剥夺全景上下文,强制视觉聚焦受限视区;结合画外空间暗示与单镜时间延宕,制造"观众感知威胁逼近 / 角色全然无知"的信息差,将未知转化为持续的生理性屏息与躯体焦虑。</p>
+
+    <div class="filmstrip rv">
+      <a href="92cc47d0-70cd-4036-b78f-fd5bc78c7039_B_s1.png" data-lb><span class="fno">B·S1</span><img src="92cc47d0-70cd-4036-b78f-fd5bc78c7039_B_s1.png" alt="B 镜头1"></a>
+      <a href="92cc47d0-70cd-4036-b78f-fd5bc78c7039_B_s2.png" data-lb><span class="fno">B·S2</span><img src="92cc47d0-70cd-4036-b78f-fd5bc78c7039_B_s2.png" alt="B 镜头2"></a>
+      <a href="92cc47d0-70cd-4036-b78f-fd5bc78c7039_B_s3.png" data-lb><span class="fno">B·S3</span><img src="92cc47d0-70cd-4036-b78f-fd5bc78c7039_B_s3.png" alt="B 镜头3"></a>
+    </div>
+
+    <article class="shot rv">
+      <div class="shot-img"><span class="shot-no">1</span><img src="92cc47d0-70cd-4036-b78f-fd5bc78c7039_B_s1.png" data-lb alt="B1 关键帧"></div>
+      <div class="shot-body">
+        <div class="params"><span class="p-chip"><b>景别</b>中景</span><span class="p-chip"><b>运镜</b>极缓横移 ≈0.5°/s</span><span class="p-chip"><b>焦距</b>50mm</span><span class="p-chip"><b>光圈</b>f/4.0 浅焦</span></div>
+        <div class="dur"><span>节奏</span><div class="dur-track"><div class="dur-bar" style="--s:8"></div></div><span class="dur-val">8s</span></div>
+        <div class="hint">保留原图人物与水面位置,机位微俯平移,右侧叠加暗部前景遮挡物压缩画面,整体压暗转冷蓝灰调,水面虚化处理,人物边缘强化冷色侧逆光。</div>
+        <details class="chain"><summary>机制链推理</summary>
+          <p>意图 3.1/1.2 → 机制:持续低气压靠稳定手段维持,视觉空间拥挤压缩引发感官紧绷 → 构成:中景配合前景斜切遮挡与浅焦虚化,切断远景上下文,强制视线锁死人物剪影 → 参数:50mm 建立空间基准,f/4.0 浅焦剥离环境干扰,极缓横移打破绝对静止制造"被注视"的不安感,冷灰低调光奠定压抑基底,8s 时长在舒适区边缘建立初始焦灼。</p>
+        </details>
+      </div>
+    </article>
+
+    <article class="shot rv">
+      <div class="shot-img"><span class="shot-no">2</span><img src="92cc47d0-70cd-4036-b78f-fd5bc78c7039_B_s2.png" data-lb alt="B2 关键帧"></div>
+      <div class="shot-body">
+        <div class="params"><span class="p-chip"><b>景别</b>中近景</span><span class="p-chip"><b>运镜</b>极缓微推(潜行凝视)</span><span class="p-chip"><b>焦距</b>75mm</span><span class="p-chip"><b>光圈</b>f/3.5 极浅焦</span></div>
+        <div class="dur"><span>节奏</span><div class="dur-track"><div class="dur-bar" style="--s:15"></div></div><span class="dur-val">15s</span></div>
+        <div class="hint">镜头推至中近景,人物放大并偏右,左侧裁切出画外空间,焦距拉长压缩背景,整体色调转冷绿灰,加深背景阴影,人物连帽衫细节提亮但面部保持全暗。</div>
+        <details class="chain"><summary>机制链推理</summary>
+          <p>意图 8.3/1.2 → 机制:信息差(画外听觉/空间暗示威胁逼近而角色无知)叠加时间延宕制造焦灼,单镜拖长超出舒适区引发生理性屏息 → 构成:75mm 中长焦压缩空间,f/3.5 极浅焦彻底隔离背景,紧框 + 左侧画外留白构建"威胁在画外"的信息差结构,极缓微推模拟凝视逼近 → 参数:焦段递进强化空间剥夺感,15s 单镜悬停配合画外极微弱环境异音(如水面微扰/远处摩擦声),将"还没发生"的时间拉长至煎熬,完美贴合 8.3 信息延宕与 1.2 感官紧绷的复合机制。</p>
+        </details>
+      </div>
+    </article>
+
+    <article class="shot rv">
+      <div class="shot-img"><span class="shot-no">3</span><img src="92cc47d0-70cd-4036-b78f-fd5bc78c7039_B_s3.png" data-lb alt="B3 关键帧"></div>
+      <div class="shot-body">
+        <div class="params"><span class="p-chip"><b>景别</b>近景/特写</span><span class="p-chip"><b>运镜</b>绝对静止</span><span class="p-chip"><b>焦距</b>90mm</span><span class="p-chip"><b>光圈</b>f/2.8 极浅焦</span></div>
+        <div class="dur"><span>节奏</span><div class="dur-track"><div class="dur-bar" style="--s:12"></div></div><span class="dur-val">12s</span></div>
+        <div class="hint">裁切至肩背特写,人物充满画面中央,四周添加纯黑暗角形成隧道视觉,整体转为高反差铁灰单色调,仅保留兜帽边缘冷色轮廓光,水面与天空完全隐入黑场。</div>
+        <details class="chain"><summary>机制链推理</summary>
+          <p>意图 3.1/1.2 → 机制:低调稳定压顶构图与视觉隧道效应剥夺所有上下文,迫使观众在"无信息"状态下持续承受未爆发的压迫感 → 构成:90mm 中长焦 + 极紧框 + 四角暗角制造视觉窒息,f/2.8 极浅焦仅锐化兜帽边缘,绝对静止拒绝任何叙事释放 → 参数:铁灰高反差低调光彻底抹除环境细节,12s 长镜压住呼吸节奏,将前序累积的画外信息差转化为纯粹的躯体焦虑,完成从"悬疑预期"到"生理紧绷"的机制闭环。</p>
+        </details>
+      </div>
+    </article>
+
+    <div class="seq-note rv"><b>序列总评 · Overall Rationale</b>
+      全序列严格遵循"感知剥夺 → 信息差延宕 → 生理紧绷"的机制链。通过 50mm 至 90mm 中长焦递进与 f/4.0 至 f/2.8 景深收缩,系统性切断全景上下文,将观众视线强制锁死在人物受限视区内。节奏上以极缓运镜与 8s/15s/12s 的单镜拖长,拒绝视觉深焦直给,转而利用画外留白、前景遮挡与环境音暗示构建"观众知威胁逼近 / 角色背对无知"的信息差(8.3)。冷峻低调光、高反差阴影与脱饱和色调贯穿始终,以"窄"逼"紧",将原画面的静谧彻底转化为持续悬而不发的不祥气压(3.1)与超出舒适区的感官焦虑(1.2)。所有参数选择均沿三层链向上回溯,确保意图忠实与机制自洽。
+    </div>
+  </section>
+
+  <!-- ═══════════ 方案 C ═══════════ -->
+  <section class="scheme" id="scheme-c">
+    <div class="scheme-head rv">
+      <span class="scheme-letter">C</span>
+      <h3>时间 / 节奏悬置路径</h3>
+      <div class="scheme-tags"><span class="chip">8.3 悬念</span><span class="chip">3.1 不祥</span></div>
+    </div>
+    <p class="scheme-mech rv">时间延宕与节奏拒绝释放:单镜超长停留打破叙事舒适区,稳定静观迫使观众在"尚未发生"的真空里持续累积心理重压。</p>
+
+    <div class="filmstrip rv">
+      <a href="92cc47d0-70cd-4036-b78f-fd5bc78c7039_C_s1.png" data-lb><span class="fno">C·S1</span><img src="92cc47d0-70cd-4036-b78f-fd5bc78c7039_C_s1.png" alt="C 镜头1"></a>
+      <a href="92cc47d0-70cd-4036-b78f-fd5bc78c7039_C_s2.png" data-lb><span class="fno">C·S2</span><img src="92cc47d0-70cd-4036-b78f-fd5bc78c7039_C_s2.png" alt="C 镜头2"></a>
+      <a href="92cc47d0-70cd-4036-b78f-fd5bc78c7039_C_s3.png" data-lb><span class="fno">C·S3</span><img src="92cc47d0-70cd-4036-b78f-fd5bc78c7039_C_s3.png" alt="C 镜头3"></a>
+    </div>
+
+    <article class="shot rv">
+      <div class="shot-img"><span class="shot-no">1</span><img src="92cc47d0-70cd-4036-b78f-fd5bc78c7039_C_s1.png" data-lb alt="C1 关键帧"></div>
+      <div class="shot-body">
+        <div class="params"><span class="p-chip"><b>景别</b>大远景</span><span class="p-chip"><b>运镜</b>绝对固定</span><span class="p-chip"><b>焦距</b>24mm</span><span class="p-chip"><b>景深</b>全景深</span></div>
+        <div class="dur"><span>节奏</span><div class="dur-track"><div class="dur-bar" style="--s:18"></div></div><span class="dur-val">18s</span></div>
+        <div class="hint">拉远至大远景,人物缩至左下角,地平线压至画面底部 1/5 处,整体压暗转冷蓝灰调,水面抹去反光转为哑光灰。</div>
+        <details class="chain"><summary>机制链推理</summary>
+          <p>效果意图为建立笼罩全场的不祥气压(3.1)→ 机制依赖稳定静观与拒绝释放维持持续低气压 → 构成上采用极低地平线与空旷留白剥夺视觉焦点,配合绝对固定机位切断任何动态提示 → 参数取大远景、24mm 全景深、18 秒绝对静止,以静态几何场强迫观众在"无事发生"中进入等待状态,奠定压抑基调。</p>
+        </details>
+      </div>
+    </article>
+
+    <article class="shot rv">
+      <div class="shot-img"><span class="shot-no">2</span><img src="92cc47d0-70cd-4036-b78f-fd5bc78c7039_C_s2.png" data-lb alt="C2 关键帧"></div>
+      <div class="shot-body">
+        <div class="params"><span class="p-chip"><b>景别</b>全景</span><span class="p-chip"><b>运镜</b>毫米级匀速微推</span><span class="p-chip"><b>焦距</b>50mm</span><span class="p-chip"><b>景深</b>深焦</span></div>
+        <div class="dur"><span>节奏</span><div class="dur-track"><div class="dur-bar" style="--s:25"></div></div><span class="dur-val">25s</span></div>
+        <div class="hint">推近至全景,右侧叠加暗色礁石遮挡 1/3 画幅,维持平视,降低环境亮度使前景吞没于阴影,色调转铁灰冷调。</div>
+        <details class="chain"><summary>机制链推理</summary>
+          <p>效果意图为制造信息差焦灼(8.3)与感官紧绷(1.2)→ 机制依靠希区柯克"观众知威胁而角色不知"的时间延宕与空间压缩制造生理屏息 → 构成上利用前景遮挡切割视野,深焦将潜在水面异动与无知背影同框,极慢微推模拟窥视视线 → 参数取 50mm 标准镜深焦、25 秒超长停留、低调阴影,拖长"尚未发生"的时间,使观众在即将发生却迟迟不发的真空里持续焦虑。</p>
+        </details>
+      </div>
+    </article>
+
+    <article class="shot rv">
+      <div class="shot-img"><span class="shot-no">3</span><img src="92cc47d0-70cd-4036-b78f-fd5bc78c7039_C_s3.png" data-lb alt="C3 关键帧"></div>
+      <div class="shot-body">
+        <div class="params"><span class="p-chip"><b>景别</b>近景</span><span class="p-chip"><b>运镜</b>绝对固定</span><span class="p-chip"><b>焦距</b>85mm</span><span class="p-chip"><b>景深</b>浅</span></div>
+        <div class="dur"><span>节奏</span><div class="dur-track"><div class="dur-bar" style="--s:32"></div></div><span class="dur-val">32s</span></div>
+        <div class="hint">裁切至人物肩背近景,机位微俯,背景水面完全虚化,压暗整体曝光,强化冷绿灰脱饱和色调,剔除高光仅留背部轮廓。</div>
+        <details class="chain"><summary>机制链推理</summary>
+          <p>效果意图为将悬疑张力推至临界并维持压抑气压(8.3/1.2/3.1)→ 机制通过绝对时长打破叙事舒适区,以零剪辑与恒定光线拒绝情绪释放 → 构成上裁切环境信息仅留局部,微俯角制造心理压迫,镜头"凝视"静止主体 → 参数取 85mm 浅景深、32 秒极限停留、恒定冷光,迫使观众在"等待靴子落地"的焦灼中累积重压,将原静谧彻底转化为倒计时张力。</p>
+        </details>
+      </div>
+    </article>
+
+    <div class="seq-note rv"><b>序列总评 · Overall Rationale</b>
+      整体沿"时间悬置"机制运作:三镜构成一个连续的心理加压弧线。首镜以绝对固定与大远景建立静态几何场,剥夺视觉刺激迫使观众进入等待(3.1);次镜通过前景遮挡与深焦同框植入信息差,极缓微推配合超长时长拖出"尚未发生"的焦灼(8.3/1.2);末镜裁切环境、微俯凝视局部,用 32 秒极限停留与恒定冷光彻底拒绝节奏释放。镜头间不靠剪辑切换,而靠景别收缩与时间叠加,将原画面的空旷静谧转化为持续累积的希区柯克式悬疑倒计时。
+    </div>
+  </section>
+
+  <!-- ═══════════ 尾注 ═══════════ -->
+  <footer class="pipeline rv" id="how">
+    <div class="ch-sub" style="letter-spacing:0.34em;">HOW IT WORKS</div>
+    <div class="flow">
+      <i>意图对齐 · 12×56 设计空间</i><em>→</em><i>机制路径枚举 ≤3</i><em>→</em><i>三层链:效果→机制→手段→十参数</i><em>→</em><i>审校:机制忠实×参数耦合</i><em>→</em><i>图像编辑逐镜渲染</i>
+    </div>
+    <p class="credits">
+      <b>CINEDESIGN</b> · 人在环两阶段创意系统<br>
+      纯推理生成(ADR-0010) · 重拍摄语义(ADR-0012) · 关键帧 = 基底图 × 重摄指令 · qwen-image-2.0<br>
+      SESSION 92CC47D0 · 10 KEYFRAMES · 2026
+    </p>
+  </footer>
+
+</main>
+
+<dialog id="lb"><img src="" alt="放大查看"></dialog>
+
+<script>
+  // ?only=<sectionId>:仅展示某一章节(分享/截图用)
+  const only = new URLSearchParams(location.search).get("only");
+  if (only && document.getElementById(only)) {
+    document.querySelector(".hero").style.display = "none";
+    document.querySelectorAll("main > section, main > footer").forEach((el) => {
+      if (el.id !== only) el.style.display = "none";
+    });
+  }
+
+  // 滚动浮现(?noanim 直通:截图/打印用)
+  if (new URLSearchParams(location.search).has("noanim")) {
+    document.querySelectorAll(".rv").forEach((el) => el.classList.add("in"));
+  } else {
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+    }, { threshold: 0.12 });
+    document.querySelectorAll(".rv").forEach((el) => io.observe(el));
+  }
+
+  // 灯箱
+  const lb = document.getElementById("lb");
+  const lbImg = lb.querySelector("img");
+  document.querySelectorAll("[data-lb]").forEach((el) => {
+    el.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      lbImg.src = el.tagName === "IMG" ? el.src : el.href;
+      lb.showModal();
+    });
+  });
+  lb.addEventListener("click", () => lb.close());
+</script>
+</body>
+</html>

@@ -221,7 +221,7 @@ export function DimControls({ dims, compMode = false, moveMode = false, lightMod
               <button onClick={onToggleComp}
                 className={`w-full rounded-lg px-2 py-1.5 text-[11px] font-medium transition ${compMode
                   ? 'bg-brand text-white' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}>
-                {compMode ? '✓ Editing on the canvas · click to exit' : 'Drag the focus on the canvas ▸'}
+                {compMode ? '✓ Composition guides on · click to exit' : 'Drag the subject marker to compose ▸'}
               </button>
               <div className="flex gap-2.5">
                 <div className="space-y-1">
@@ -326,11 +326,18 @@ function CurveEditor({ curve, onChange, onCommit }: {
   const startDrag = (i: number) => (e: React.PointerEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    const isEnd = i === 0 || i === curve.length - 1 // 端点 x 固定(0=起点/1=终点),只中间点可左右拖
     const move = (ev: PointerEvent) => {
       const r = ref.current!.getBoundingClientRect()
       const vy = ((ev.clientY - r.top) / r.height) * H
       const ny = clampN(1 - (vy - PAD) / ih, 0, 1)
-      onChange(curve.map((p, k) => (k === i ? { ...p, y: ny } : p)))
+      let nx = curve[i]!.x
+      if (!isEnd) {
+        const vx = ((ev.clientX - r.left) / r.width) * W
+        // x 夹在相邻两点之间(留 0.02 间隙),保证时间轴单调、不越过邻居
+        nx = clampN((vx - PAD) / iw, curve[i - 1]!.x + 0.02, curve[i + 1]!.x - 0.02)
+      }
+      onChange(curve.map((p, k) => (k === i ? { ...p, x: nx, y: ny } : p)))
     }
     const up = () => {
       window.removeEventListener('pointermove', move)
@@ -353,7 +360,7 @@ function CurveEditor({ curve, onChange, onCommit }: {
       <path d={`${path} L ${sx(1).toFixed(1)} ${sy(0).toFixed(1)} L ${sx(0).toFixed(1)} ${sy(0).toFixed(1)} Z`} fill="#6366f1" opacity={0.08} />
       <path d={path} fill="none" stroke="#6366f1" strokeWidth={1.8} />
       {pts.map((p, i) => (
-        <g key={i} style={{ cursor: 'ns-resize' }} onPointerDown={startDrag(i)}>
+        <g key={i} style={{ cursor: i === 0 || i === pts.length - 1 ? 'ns-resize' : 'move' }} onPointerDown={startDrag(i)}>
           <circle cx={p.x} cy={p.y} r={8} fill="#000" opacity={0} />
           <circle cx={p.x} cy={p.y} r={3.4} fill="#fff" stroke="#6366f1" strokeWidth={1.8} />
         </g>

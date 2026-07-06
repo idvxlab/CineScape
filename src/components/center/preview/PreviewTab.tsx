@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react'
 import { useProject } from '../../../state/ProjectContext'
 import { useEditor } from '../../../state/useEditor'
 import type { ShotScript, SchemeShot } from '../../../api/backend'
+import { CODEBOOK } from '../../../lib/designSpace'
 
 const VARIANT = ['A', 'B', 'C', 'D', 'E']
+// design-space code (e.g. 3.4) → "3.4 English intent name"; falls back to the bare code
+const intentLabel = (code: string) => (CODEBOOK[code] ? `${code} ${CODEBOOK[code]!.l2}` : code)
 const GEN_STEPS = ['Deriving strategy directions…', 'Reasoning the A/B/C shot scripts…', 'Validating cinematic grammar…']
 
 export function PreviewTab() {
@@ -85,7 +88,7 @@ function SchemeCard({ scheme, variant, active, onEdit }: { scheme: ShotScript; v
         <div className="space-y-2.5 border-t border-[#eef1f4] p-3">
           {scheme.dominant_intents.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
-              {scheme.dominant_intents.map((d) => <span key={d} className="rounded bg-brand-soft px-1.5 py-0.5 text-[11px] font-medium text-brand">{d}</span>)}
+              {scheme.dominant_intents.map((d) => <span key={d} className="rounded bg-brand-soft px-1.5 py-0.5 text-[11px] font-medium text-brand">{intentLabel(d)}</span>)}
             </div>
           )}
           <div className="space-y-2">
@@ -113,7 +116,7 @@ function ShotRow({ sh }: { sh: SchemeShot }) {
       <div className="mb-1.5 flex items-center gap-2 text-[12px] font-semibold text-gray-800">
         <span className="grid h-4 w-4 place-items-center rounded-full bg-ink text-[10px] text-white">{sh.order}</span>
         Shot {sh.order}
-        {sh.serves.length > 0 && <span className="ml-1 text-[10px] font-normal text-gray-400">serves {sh.serves.join(', ')}</span>}
+        {sh.serves.length > 0 && <span className="ml-1 text-[10px] font-normal text-gray-400">serves {sh.serves.map(intentLabel).join(', ')}</span>}
       </div>
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
         {dims.filter(([, v]) => v).map(([k, v]) => (

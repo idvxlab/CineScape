@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { Canvas, useThree, useFrame } from '@react-three/fiber'
-import { OrbitControls, useTexture, Line, Grid, Edges, Html } from '@react-three/drei'
+import { useTexture, Line, Grid, Edges, Html, OrbitControls } from '@react-three/drei'
 import type { SevenDims, Anchor } from '../../../api/types'
 import { levelOf, deriveMoveEnd, DIST_MIN, DIST_MAX, SHOT_RINGS, LEVEL_EN } from '../../../lib/dims'
 import { orbitMeaning, angleMeaning, shotSizeMeaning } from '../../../lib/semantics'
@@ -28,22 +28,46 @@ const LIGHT_R = 14
 const DEPTH_MAX = 20 // max subject↔backdrop distance (m)
 const SUBJECT_Y = 4.2 // subject torso-center height (camera is eye-level at pitch 0)
 const BACKDROP_Z = -14 // the backdrop is FIXED at this world z; the subject stands in front of it (+z)
-const LATERAL_RANGE = 16 // subject's lateral travel across the scene (point2d.x 0..1 → x ∈ [−8, 8])
 // subject↔backdrop distance (m) ↔ the visual gap between the subject and the fixed backdrop
 const BD_VIS_MIN = 7, BD_VIS_MAX = 24
 const bdVis = (depthM: number) => BD_VIS_MIN + (clamp(depthM, 0, DEPTH_MAX) / DEPTH_MAX) * (BD_VIS_MAX - BD_VIS_MIN)
 const invBdVis = (v: number) => ((clamp(v, BD_VIS_MIN, BD_VIS_MAX) - BD_VIS_MIN) / (BD_VIS_MAX - BD_VIS_MIN)) * DEPTH_MAX
-// the subject's world position (= orbit centre): lateral from point2d.x, depth from the fixed backdrop
+// the subject's world position on the fixed photo = where the person actually IS in the photo.
+// point2d is the normalised position IN THE PHOTO (0..1, y from the top), so map it directly onto the
+// photo plane: x ∈ [−WALL_W/2, WALL_W/2], y ∈ [0, WALL_H]. This is the crop centre the viewfinder frames,
+// so the person is always in shot when the camera aims at them (focus centred).
 function actorPos(anchor: Anchor): THREE.Vector3 {
-  const px = ((anchor.point2d?.x ?? 0.5) - 0.5) * LATERAL_RANGE
-  const pz = BACKDROP_Z + bdVis(anchor.depthM ?? 8.5)
-  const py = clamp(SUBJECT_Y + (anchor.liftM ?? 0), 1, WALL_H - 1)
-  return new THREE.Vector3(px, py, pz)
+  const px = ((anchor.point2d?.x ?? 0.5) - 0.5) * WALL_W
+  const py = clamp((1 - (anchor.point2d?.y ?? 0.5)) * WALL_H, 1, WALL_H - 1)
+  return new THREE.Vector3(px, py, BACKDROP_Z)
+}
+// Fixed orbit anchor: the camera always orbits the centre of the backdrop wall, completely
+// independent of where the actor capsule is placed. The actor and the camera are decoupled —
+// dragging the capsule moves the subject on the photo, right-dragging the viewport pans freely.
+const WALL_CENTER = new THREE.Vector3(0, SUBJECT_Y, BACKDROP_Z)
+// Composition drives the camera, NOT the actor. The actor is FIXED on the photo wall; to place them at
+// composition.focus in the frame, the camera's aim centre (what the frame is built around) shifts the
+// OPPOSITE way — focus right/up ⇒ aim (and the whole rig) slides left/down, so the actor lands top-right.
+// This is the "reframe by moving the camera, never the subject" principle, made literal.
+const FOCUS_LAT_MAX = WALL_W / 2 // aim can slide up to half the photo width/height off the actor
+const FOCUS_VERT_MAX = WALL_H / 2
+// aim centre = actor's wall position shifted opposite to the focus offset, scaled by the on-screen frame size.
+function aimCenter(dims: SevenDims, actor: THREE.Vector3): THREE.Vector3 {
+  const f = dims.composition.focus ?? { x: 0.5, y: 0.5 }
+  // frame half-extents on the actor plane (metres). NOTE: uses the BASE 42° vfov WITHOUT zoom on purpose —
+  // focus is "where the subject sits in frame" (a normalised position), so its world anchor must not depend
+  // on focal length. Folding zoom in here made the rig drift sideways whenever you changed the lens.
+  const halfH = clamp(visR(dims.distanceM) * Math.tan(THREE.MathUtils.degToRad(42) / 2), 0.5, FOCUS_VERT_MAX)
+  const halfW = clamp((halfH * 16) / 9, 0.5, FOCUS_LAT_MAX)
+  // focus.x > 0.5 (actor right of frame) ⇒ aim left of actor; focus.y > 0.5 (actor low) ⇒ aim above actor
+  const dx = -(f.x - 0.5) * 2 * halfW
+  const dy = (f.y - 0.5) * 2 * halfH
+  return new THREE.Vector3(actor.x + dx, actor.y + dy, actor.z)
 }
 // Visual orbit radius: compress real Dolly distance (1..26m) into a tighter on-screen radius so the
 // photo wall stays the dominant element. Shot Size / the data still use the real distanceM.
-const DIST_VIS_MIN = 3.5
-const DIST_VIS_MAX = 11
+const DIST_VIS_MIN = 6
+const DIST_VIS_MAX = 22
 const visR = (d: number) => DIST_VIS_MIN + ((clamp(d, DIST_MIN, DIST_MAX) - DIST_MIN) / (DIST_MAX - DIST_MIN)) * (DIST_VIS_MAX - DIST_VIS_MIN)
 const invVisR = (R: number) => DIST_MIN + ((clamp(R, DIST_VIS_MIN, DIST_VIS_MAX) - DIST_VIS_MIN) / (DIST_VIS_MAX - DIST_VIS_MIN)) * (DIST_MAX - DIST_MIN)
 
@@ -72,11 +96,6 @@ function camWorld(dims: SevenDims, c: THREE.Vector3): THREE.Vector3 {
   return new THREE.Vector3().setFromSpherical(new THREE.Spherical(visR(dims.distanceM), phi, theta)).add(c)
 }
 
-// ---- director's free observation camera -----------------------------------
-function CameraObserve({ center }: { center: THREE.Vector3 }) {
-  return <OrbitControls makeDefault target={center.toArray()} enablePan={false} minDistance={4} maxDistance={120} />
-}
-
 // One draggable axis arrow (shaft + head + fat invisible hit cylinder), pointing along `dir` from the gizmo origin
 const Y_UP = new THREE.Vector3(0, 1, 0)
 function AxisArrow({ dir, length, color, active, onDown, onOver, onOut }: { dir: THREE.Vector3; length: number; color: string; active: boolean; onDown: (e: any) => void; onOver?: () => void; onOut?: () => void }) {
@@ -103,7 +122,7 @@ function AxisArrow({ dir, length, color, active, onDown, onOver, onOut }: { dir:
   )
 }
 
-type Axis = 'orbit' | 'tilt' | 'dolly' | null
+type Axis = 'orbit' | 'tilt' | 'dolly' | 'rotate' | 'truck' | null
 const ORBIT_COL = '#4c8dff', TILT_COL = '#ff5fa2', DOLLY_COL = '#2bd4c4'
 
 // ---- shot-camera gizmo with 3 axes: Orbit (yaw) / Tilt (pitch) / Dolly (distance) ----
@@ -113,6 +132,11 @@ function CameraGizmo({ dims, center, onDraftChange, onCommit }: Pick<Props, 'dim
   const camera = useThree((s) => s.camera)
   const pointer = useThree((s) => s.pointer)
   const [axis, setAxis] = useState<Axis>(null)
+  // last pointer (NDC) for delta-based body rotate (left-drag the body → free orbit + tilt).
+  const lastPtr = useRef({ x: 0, y: 0 })
+  // truck grab origin: wall-plane hit + focus captured at pointer-down, so right-drag is a stable relative
+  // displacement. Trucking the camera == re-composing: sliding the rig right ≡ subject drifts left in frame.
+  const truckOrigin = useRef({ hit: new THREE.Vector3(), focus: { x: 0.5, y: 0.5 } })
 
   useEffect(() => {
     if (!axis) return
@@ -132,7 +156,34 @@ function CameraGizmo({ dims, center, onDraftChange, onCommit }: Pick<Props, 'dim
     const yawRad = THREE.MathUtils.degToRad(dims.angle.yaw)
     const radialH = new THREE.Vector3(Math.sin(yawRad), 0, Math.cos(yawRad)) // horizontal radial at current yaw
 
-    if (axis === 'orbit') {
+    if (axis === 'truck') {
+      // right-drag the body → truck/pedestal the rig parallel to the wall. Since aimCenter is derived from
+      // focus (aim = actor − focus·frame), sliding the camera == re-composing: map the world delta on the
+      // wall-parallel plane to a focus delta. Same sign as dragging the subject marker: camera right ⇒
+      // subject sits further LEFT in frame ⇒ focus.x down; camera up ⇒ subject lower ⇒ focus.y down.
+      const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -center.z)
+      const hit = new THREE.Vector3()
+      if (!ray.intersectPlane(plane, hit)) return
+      const zoom = dims.composition.zoom ?? 1
+      const halfH = clamp(visR(dims.distanceM) * Math.tan(THREE.MathUtils.degToRad(42 / zoom) / 2), 0.5, WALL_H / 2)
+      const halfW = (halfH * 16) / 9
+      const o = truckOrigin.current
+      const fx = clamp(o.focus.x - (hit.x - o.hit.x) / (2 * halfW), 0, 1)
+      const fy = clamp(o.focus.y + (hit.y - o.hit.y) / (2 * halfH), 0, 1)
+      if (fx !== (dims.composition.focus?.x ?? 0.5) || fy !== (dims.composition.focus?.y ?? 0.5))
+        onDraftChange({ dims: { composition: { ...dims.composition, focus: { x: round1(fx), y: round1(fy) }, preset: undefined } } })
+    } else if (axis === 'rotate') {
+      // left-drag the body → free orbit + tilt. Delta-based (NDC pointer since last frame → degrees),
+      // so the camera rotates from where it is instead of snapping under the cursor.
+      const dxn = pointer.x - lastPtr.current.x
+      const dyn = pointer.y - lastPtr.current.y
+      lastPtr.current = { x: pointer.x, y: pointer.y }
+      let yaw = Math.round(dims.angle.yaw + dxn * 120) // full-screen drag ≈ 240°
+      yaw = ((((yaw + 180) % 360) + 360) % 360) - 180 // wrap to −180..180
+      const pitch = clamp(Math.round(dims.angle.pitch + dyn * 120), -89, 89)
+      if (yaw !== dims.angle.yaw || pitch !== dims.angle.pitch)
+        onDraftChange({ dims: { angle: { ...dims.angle, yaw, pitch, level: levelOf(pitch) } } })
+    } else if (axis === 'orbit') {
       // intersect horizontal plane through center → azimuth
       const plane = new THREE.Plane(Y_UP, -center.y)
       const hit = new THREE.Vector3()
@@ -169,20 +220,41 @@ function CameraGizmo({ dims, center, onDraftChange, onCommit }: Pick<Props, 'dim
   const tiltT = new THREE.Vector3().crossVectors(radialN, orbitT).normalize() // pitch tangent (toward up)
   const view = center.clone().sub(cw).normalize()
   const grab = (a: Axis) => (e: any) => {
+    if (e.button !== 0) return // only left-drag edits an axis; right-drag falls through to OrbitControls pan
     e.stopPropagation()
     if (controls) controls.enabled = false
     setAxis(a)
   }
+  // Grab the camera BODY: LEFT-drag = free orbit + tilt (rotate); RIGHT-drag = truck (slide the rig
+  // parallel to the wall, which re-composes — same focus target the subject marker / grid drive).
+  const grabBody = (e: any) => {
+    if (e.button !== 0 && e.button !== 2) return
+    e.stopPropagation()
+    if (controls) controls.enabled = false
+    if (e.button === 2) {
+      raycaster.setFromCamera(pointer, camera)
+      const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -center.z)
+      const hit = new THREE.Vector3()
+      raycaster.ray.intersectPlane(plane, hit)
+      truckOrigin.current = { hit: hit.clone(), focus: { x: dims.composition.focus?.x ?? 0.5, y: dims.composition.focus?.y ?? 0.5 } }
+      setAxis('truck')
+    } else {
+      lastPtr.current = { x: pointer.x, y: pointer.y }
+      setAxis('rotate')
+    }
+  }
   const camQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), view) // local +z faces the subject
   // live drag readout: semantic meaning (prominent) + the raw number (small)
   const readout =
-    axis === 'orbit'
-      ? { sem: orbitMeaning(dims.angle.yaw), txt: `Orbit ${dims.angle.yaw}°`, col: ORBIT_COL }
+    axis === 'orbit' || axis === 'rotate'
+      ? { sem: orbitMeaning(dims.angle.yaw), txt: `Orbit ${dims.angle.yaw}° · Tilt ${dims.angle.pitch}°`, col: ORBIT_COL }
       : axis === 'tilt'
         ? { sem: angleMeaning(dims.angle.pitch), txt: `Tilt ${dims.angle.pitch}° · ${LEVEL_EN[dims.angle.level]}`, col: TILT_COL }
         : axis === 'dolly'
           ? { sem: shotSizeMeaning(dims), txt: `Dolly ${dims.distanceM.toFixed(1)} m · ${dims.shotSize}`, col: DOLLY_COL }
-          : null
+          : axis === 'truck'
+            ? { sem: 'Reframe', txt: `Composing · focus ${Math.round((dims.composition.focus?.x ?? 0.5) * 100)}/${Math.round((dims.composition.focus?.y ?? 0.5) * 100)}`, col: '#7fd6ea' }
+            : null
   const mid = center.clone().lerp(cw, 0.5)
   return (
     <>
@@ -193,12 +265,18 @@ function CameraGizmo({ dims, center, onDraftChange, onCommit }: Pick<Props, 'dim
         </>
       )}
     <group position={cw.toArray()}>
-      {/* movie camera, oriented to look at the subject — scaled down to roughly human scale */}
-      <group quaternion={camQuat} scale={0.5}>
+      {/* movie camera, oriented to look at the subject — scaled up for better visibility.
+          Drag the body: LEFT = orbit + tilt, RIGHT = truck (slide parallel to the wall). */}
+      <group quaternion={camQuat} scale={1.2}>
         {/* body */}
-        <mesh castShadow>
+        <mesh
+          castShadow
+          onPointerDown={grabBody}
+          onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = 'grab' }}
+          onPointerOut={() => { if (!axis) document.body.style.cursor = 'auto' }}
+        >
           <boxGeometry args={[1.9, 1.45, 2.4]} />
-          <meshStandardMaterial color="#b3bdca" metalness={0.55} roughness={0.32} />
+          <meshStandardMaterial color={axis === 'rotate' || axis === 'truck' ? '#d4dde8' : '#b3bdca'} metalness={0.55} roughness={0.32} />
           <Edges color="#e6eef7" />
         </mesh>
         {/* lens hood (toward subject, +z) */}
@@ -245,9 +323,9 @@ function CameraGizmo({ dims, center, onDraftChange, onCommit }: Pick<Props, 'dim
         </mesh>
       </group>
       {/* 3 control axes (world-aligned, not rotated with the camera) */}
-      <AxisArrow dir={orbitT} length={3.6} color={ORBIT_COL} active={axis === 'orbit'} onDown={grab('orbit')} />
-      <AxisArrow dir={tiltT} length={3.6} color={TILT_COL} active={axis === 'tilt'} onDown={grab('tilt')} />
-      <AxisArrow dir={radialN} length={3.6} color={DOLLY_COL} active={axis === 'dolly'} onDown={grab('dolly')} />
+      <AxisArrow dir={orbitT} length={6} color={ORBIT_COL} active={axis === 'orbit'} onDown={grab('orbit')} />
+      <AxisArrow dir={tiltT} length={6} color={TILT_COL} active={axis === 'tilt'} onDown={grab('tilt')} />
+      <AxisArrow dir={radialN} length={6} color={DOLLY_COL} active={axis === 'dolly'} onDown={grab('dolly')} />
     </group>
     </>
   )
@@ -351,6 +429,7 @@ function SunGizmo({ lighting, center, onDraftChange, onCommit }: Pick<Props, 'on
       <group position={p.toArray()}>
         <mesh
           onPointerDown={(e) => {
+            if (e.button !== 0) return // only left-drag moves the sun; right-drag falls through to OrbitControls pan
             e.stopPropagation()
             if (controls) controls.enabled = false
             setDrag(true)
@@ -468,47 +547,49 @@ function ViewFrustum({ dims, center, compMode = false }: { dims: SevenDims; cent
   )
 }
 
-// ---- orbit ring at the photo-center height --------------------------------
-// Split into a FRONT arc (z>0, in front of the photo wall — bright solid) and a BACK arc
-// (z<0, behind the wall — dim dashed), so the circle reads with clear front/back depth.
+// ---- orbit ring anchored to the photo wall --------------------------------
+// Centre sits on the backdrop at the actor's x/y; only the front semicircle
+// (protruding toward the viewer, z > BACKDROP_Z) is drawn — the back half is
+// literally inside/behind the wall and invisible. The ring grows with visR
+// (dolly distance), so pulling the camera back makes the arc bigger.
 function CameraRing({ dims, center }: { dims: SevenDims; center: THREE.Vector3 }) {
   const r = visR(dims.distanceM)
   const yaw = THREE.MathUtils.degToRad(dims.angle.yaw)
-  // offset at angle a (matches camera/marker convention): x=sin(a)·r, z=cos(a)·r → z>0 is front
-  const arc = (a0: number, a1: number) => {
+  const frontArc = (() => {
     const pts: THREE.Vector3[] = []
-    for (let a = a0; a <= a1 + 0.001; a += 4) {
+    for (let a = -90; a <= 90; a += 3) {
       const ar = THREE.MathUtils.degToRad(a)
       pts.push(new THREE.Vector3(Math.sin(ar) * r, 0, Math.cos(ar) * r))
     }
     return pts
-  }
-  // boundary between the two half-rings sits at z=0 (a=±90), i.e. the world-x axis points (±r,0,0)
+  })()
+  // short tick marks where the semicircle meets the wall (a = ±90°, x = ±r, z = 0)
   const tick = (x: number): THREE.Vector3[] => [new THREE.Vector3(x - 0.55, 0, 0), new THREE.Vector3(x + 0.55, 0, 0)]
   const reverse = Math.cos(yaw) < 0 // camera currently in the reverse-view half
   return (
     <group position={center.toArray()}>
-      {/* facing-backdrop half (z>0) — normal shooting zone: light blue-grey, solid */}
-      <Line points={arc(-90, 90)} color="#a9bccd" lineWidth={reverse ? 2.4 : 3.4} transparent opacity={reverse ? 0.6 : 0.95} depthTest={false} renderOrder={5} />
-      {/* reverse half (z<0) — reverse-view region: lighter warm-grey, dashed */}
-      <Line points={arc(90, 270)} color="#d8cdba" lineWidth={reverse ? 3.4 : 2.4} dashed dashSize={0.45} gapSize={0.4} transparent opacity={reverse ? 0.92 : 0.5} depthTest={false} renderOrder={5} />
-      {/* two short ticks marking the half-ring boundary (not a full divider) */}
+      {/* front semicircle — the only visible half; solid blue-grey */}
+      <Line points={frontArc} color="#a9bccd" lineWidth={3.4} transparent opacity={0.95} depthTest={false} renderOrder={5} />
+      {/* ticks at the wall-plane boundary (semicircle endpoints) */}
       <Line points={tick(r)} color="#eef2f6" lineWidth={2.6} transparent opacity={0.85} depthTest={false} renderOrder={6} />
       <Line points={tick(-r)} color="#eef2f6" lineWidth={2.6} transparent opacity={0.85} depthTest={false} renderOrder={6} />
-      {/* current-yaw marker — green in the normal zone, warm amber in the reverse zone */}
-      <mesh position={[Math.sin(yaw) * r, 0, Math.cos(yaw) * r]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={7}>
-        <circleGeometry args={[0.45, 24]} />
-        <meshBasicMaterial color={reverse ? '#ffc06a' : '#7CFC9E'} transparent opacity={0.95} side={THREE.DoubleSide} depthTest={false} depthWrite={false} />
-      </mesh>
+      {/* current-yaw marker — only visible when camera is in the front half */}
+      {!reverse && (
+        <mesh position={[Math.sin(yaw) * r, 0, Math.cos(yaw) * r]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={7}>
+          <circleGeometry args={[0.45, 24]} />
+          <meshBasicMaterial color="#7CFC9E" transparent opacity={0.95} side={THREE.DoubleSide} depthTest={false} depthWrite={false} />
+        </mesh>
+      )}
     </group>
   )
 }
 
-// ---- shot-size reference rings: faint dashed circles at each shot size's radius + label ----
+// ---- shot-size reference arcs: faint dashed semicircles at each shot size's radius + label ----
+// Same convention as CameraRing: centred on the backdrop wall, only the front semicircle shown.
 function ShotRings({ dims, center }: { dims: SevenDims; center: THREE.Vector3 }) {
-  const circle = (r: number) => {
+  const frontArc = (r: number) => {
     const pts: THREE.Vector3[] = []
-    for (let a = 0; a <= 360; a += 6) {
+    for (let a = -90; a <= 90; a += 4) {
       const ar = THREE.MathUtils.degToRad(a)
       pts.push(new THREE.Vector3(Math.sin(ar) * r, 0, Math.cos(ar) * r))
     }
@@ -521,7 +602,7 @@ function ShotRings({ dims, center }: { dims: SevenDims; center: THREE.Vector3 })
         const on = dims.shotSize === ring.size
         return (
           <group key={ring.size}>
-            <Line points={circle(r)} color={on ? '#7fd6ea' : '#5b8aa6'} lineWidth={on ? 1.6 : 1} dashed dashSize={0.35} gapSize={0.4} transparent opacity={on ? 0.7 : 0.4} depthTest={false} renderOrder={1} />
+            <Line points={frontArc(r)} color={on ? '#7fd6ea' : '#5b8aa6'} lineWidth={on ? 1.6 : 1} dashed dashSize={0.35} gapSize={0.4} transparent opacity={on ? 0.7 : 0.4} depthTest={false} renderOrder={1} />
             <Html position={[r + 0.3, 0, 0]} center={false} zIndexRange={[10, 0]} style={{ pointerEvents: 'none' }}>
               <div className="whitespace-nowrap text-[10px] font-medium" style={{ color: on ? '#9fe0f2' : 'rgba(159,198,224,0.6)' }}>
                 {ring.size}
@@ -634,7 +715,9 @@ function ReverseBackdrop({ anchor, center }: { anchor: Anchor; center: THREE.Vec
   )
 }
 
-// the camera frame's right/up basis + half-extents at the subject's distance (focus maps to this frame)
+// the camera frame's right/up basis + half-extents at the orbit-center distance.
+// The camera always looks at its aim centre (the orbit anchor, incl. any truck offset), NOT the
+// actor — so the frame orientation depends only on camera pose, not on where the actor stands.
 function frameBasis(dims: SevenDims, center: THREE.Vector3) {
   const cw = camWorld(dims, center)
   const view = center.clone().sub(cw).normalize()
@@ -644,120 +727,105 @@ function frameBasis(dims: SevenDims, center: THREE.Vector3) {
   const halfH = dist * Math.tan(THREE.MathUtils.degToRad(42 / (dims.composition.zoom ?? 1)) / 2)
   return { view, right, up, halfW: (halfH * 16) / 9, halfH }
 }
-// subject sits at the orbit centre; composition.focus offsets it ACROSS the full camera frame
-// (focus.x 0→1 = left→right edge), so recomposing visibly moves the subject relative to the camera.
-function subjectWorld(dims: SevenDims, center: THREE.Vector3): THREE.Vector3 {
-  const focus = dims.composition.focus ?? { x: 0.5, y: 0.5 }
-  const { right, up, halfW, halfH } = frameBasis(dims, center)
-  return center.clone().addScaledVector(right, (focus.x - 0.5) * 2 * halfW).addScaledVector(up, (0.5 - focus.y) * 2 * halfH)
-}
 
-// ---- draggable subject (the actor) -----------------------------------------
-//  • Default: drag the body to WALK the actor on the ground (lateral = point2d.x, depth-from-backdrop
-//    = depthM). The orbit centre IS the actor, so the whole camera rig follows.
-//  • Composition mode: drag the body to set the in-frame focus (off-centre framing), capsule offsets
-//    within the frame while the actor's world position is unchanged.
-function SubjectGizmo({ dims, anchor, compMode, onDraftChange, onCommit, center }: Props & { center: THREE.Vector3 }) {
+// ---- draggable subject (the actor) -------------------------------------------
+// Drag the capsule to MOVE THE PERSON on the photo (anchor.point2d). The capsule follows the cursor and
+// the CAMERA STAYS PUT — the person just shifts within the frame. We hold the camera fixed by updating
+// composition.focus to the person's new in-frame position (so the focus-derived aim centre is unchanged).
+// Effect: moving the person reframes nothing; later composition edits then work off the new position.
+function SubjectGizmo({ dims, onDraftChange, onCommit, center, aim }: Pick<Props, 'dims' | 'onDraftChange' | 'onCommit'> & { center: THREE.Vector3; aim: THREE.Vector3 }) {
   const controls = useThree((s) => s.controls) as any
   const raycaster = useThree((s) => s.raycaster)
   const camera = useThree((s) => s.camera)
   const pointer = useThree((s) => s.pointer)
-  type SMode = 'x' | 'y' | 'z' | 'ground' | 'focus' | null
-  const [mode, setMode] = useState<SMode>(null)
-  const [hover, setHover] = useState<'x' | 'y' | 'z' | 'body' | null>(null)
-  const origin = useRef(new THREE.Vector3()) // actor world position captured at grab → fixed axis lines
-  const sp = subjectWorld(dims, center) // in comp mode: actor + in-frame focus offset
+  const [drag, setDrag] = useState(false)
+  const [hover, setHover] = useState(false)
+  // camera aim centre captured at grab — we keep aim FIXED during the drag so the camera doesn't follow.
+  const aim0 = useRef(new THREE.Vector3())
+  // The capsule sits at the actor's world position and follows the cursor while dragging.
+  const sp = center
 
   useEffect(() => {
-    if (!mode) return
+    if (!drag) return
     const up = () => {
-      setMode(null)
+      setDrag(false)
       if (controls) controls.enabled = true
       document.body.style.cursor = 'auto'
       onCommit()
     }
     window.addEventListener('pointerup', up)
     return () => window.removeEventListener('pointerup', up)
-  }, [mode, controls, onCommit])
+  }, [drag, controls, onCommit])
 
   useFrame(() => {
-    if (!mode) return
+    if (!drag) return
     raycaster.setFromCamera(pointer, camera)
-    const ray = raycaster.ray
-    if (mode === 'focus') {
-      // composition: drag on the camera-facing plane through the actor → in-frame focus (full-frame mapping)
-      const { view, right, up, halfW, halfH } = frameBasis(dims, center)
-      const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(view, center)
-      const hit = new THREE.Vector3()
-      if (!ray.intersectPlane(plane, hit)) return
-      const d = hit.sub(center)
-      onDraftChange({ dims: { composition: { ...dims.composition, focus: { x: clamp(d.dot(right) / (2 * halfW) + 0.5, 0, 1), y: clamp(0.5 - d.dot(up) / (2 * halfH), 0, 1) } } } })
-      return
-    }
-    if (mode === 'ground') {
-      // quick planar walk on the floor (x + depth), keeping current lift
-      const hit = new THREE.Vector3()
-      if (!ray.intersectPlane(new THREE.Plane(Y_UP, 0), hit)) return
-      onDraftChange({ anchor: { point2d: { x: clamp(hit.x / LATERAL_RANGE + 0.5, 0, 1), y: anchor.point2d?.y ?? 0.5 }, depthM: clamp(round1(invBdVis(hit.z - BACKDROP_Z)), 0, DEPTH_MAX) } })
-      return
-    }
-    // single-axis translate: closest point on the (fixed) axis line through the grab origin to the pointer ray
-    const u = mode === 'x' ? new THREE.Vector3(1, 0, 0) : mode === 'y' ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(0, 0, 1)
-    const w0 = origin.current.clone().sub(ray.origin)
-    const b = u.dot(ray.direction)
-    const denom = 1 - b * b
-    if (Math.abs(denom) < 1e-4) return
-    const t = (b * ray.direction.dot(w0) - u.dot(w0)) / denom
-    const P = origin.current.clone().addScaledVector(u, t)
-    if (mode === 'x') onDraftChange({ anchor: { point2d: { x: clamp(P.x / LATERAL_RANGE + 0.5, 0, 1), y: anchor.point2d?.y ?? 0.5 } } })
-    else if (mode === 'z') onDraftChange({ anchor: { depthM: clamp(round1(invBdVis(P.z - BACKDROP_Z)), 0, DEPTH_MAX) } })
-    else onDraftChange({ anchor: { liftM: round1(clamp(P.y - SUBJECT_Y, 1 - SUBJECT_Y, WALL_H - 1 - SUBJECT_Y)) } })
+    // drag on the photo plane; the hit point IS the person's new position → back to normalised point2d.
+    const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -center.z)
+    const hit = new THREE.Vector3()
+    if (!raycaster.ray.intersectPlane(plane, hit)) return
+    const px = clamp(hit.x / WALL_W + 0.5, 0, 1)        // world x ∈ [−W/2,W/2] → 0..1
+    const py = clamp(1 - hit.y / WALL_H, 0, 1)          // world y ∈ [0,H] → 1..0 (point2d.y is top-down)
+    // hold the camera fixed: choose focus so aimCenter(new actor, focus) == aim0 (base 42° frame, no zoom,
+    // matching aimCenter). aim = actor + dx/dy where dx=−(fx−.5)·2halfW, dy=(fy−.5)·2halfH.
+    // FULL PRECISION on purpose — rounding point2d/focus here (they span 0..1, so round1 ≈ several metres)
+    // breaks the aim==aim0 cancellation and the camera jitters/drifts. Round only at commit if needed.
+    const halfH = clamp(visR(dims.distanceM) * Math.tan(THREE.MathUtils.degToRad(42) / 2), 0.5, FOCUS_VERT_MAX)
+    const halfW = clamp((halfH * 16) / 9, 0.5, FOCUS_LAT_MAX)
+    const fx = 0.5 - (aim0.current.x - hit.x) / (2 * halfW)
+    const fy = 0.5 + (aim0.current.y - hit.y) / (2 * halfH)
+    onDraftChange({
+      anchor: { point2d: { x: px, y: py } },
+      dims: { composition: { ...dims.composition, focus: { x: fx, y: fy }, preset: undefined } },
+    })
   })
 
-  const grab = (m: SMode) => (e: any) => {
+  const grabBody = (e: any) => {
+    if (e.button !== 0) return // left-drag moves the person; right-drag falls through to OrbitControls pan
     e.stopPropagation()
     if (controls) controls.enabled = false
-    origin.current.copy(center)
-    setMode(m)
+    aim0.current.copy(aim) // lock the camera aim so it stays put while the person moves
+    setDrag(true)
   }
-  const active = mode !== null
+  const on = drag || hover
+  // aim marker: a faint reticle at the camera's aim centre so the "camera framed off the subject" is visible
+  const aimOff = aim.clone().sub(center)
+  const showAim = aimOff.lengthSq() > 0.04
   return (
     <>
-      {/* the actor capsule ALWAYS sits at its framed position (world pos + composition offset) */}
+      {/* the actor marker — FIXED on the wall at the person's position (never moves) */}
       <group position={sp.toArray()}>
         <mesh
-          onPointerDown={grab(compMode ? 'focus' : 'ground')}
-          onPointerOver={(e) => { e.stopPropagation(); setHover('body'); document.body.style.cursor = 'grab' }}
-          onPointerOut={() => { setHover(null); if (!active) document.body.style.cursor = 'auto' }}
+          onPointerDown={grabBody}
+          onPointerOver={(e) => { e.stopPropagation(); setHover(true); document.body.style.cursor = 'grab' }}
+          onPointerOut={() => { setHover(false); if (!drag) document.body.style.cursor = 'auto' }}
           castShadow
         >
           <capsuleGeometry args={[0.32, 1.0, 8, 16]} />
-          <meshStandardMaterial color={active || hover === 'body' ? '#ffd76a' : '#e8a23a'} emissive="#5a3c00" emissiveIntensity={hover === 'body' ? 0.5 : 0} roughness={0.5} />
+          <meshStandardMaterial color={on ? '#ffd76a' : '#e8a23a'} emissive="#5a3c00" emissiveIntensity={hover ? 0.5 : 0} roughness={0.5} depthWrite />
         </mesh>
       </group>
-      {/* world-position translate gizmo (blocking mode) — at the actor's orbit-centre world position */}
-      {!compMode && (
-        <group position={center.toArray()}>
-          <AxisArrow dir={new THREE.Vector3(1, 0, 0)} length={2.6} color="#ff5b5b" active={mode === 'x' || hover === 'x'} onDown={grab('x')} onOver={() => setHover('x')} onOut={() => setHover(null)} />
-          <AxisArrow dir={new THREE.Vector3(0, 1, 0)} length={2.6} color="#7CFC9E" active={mode === 'y' || hover === 'y'} onDown={grab('y')} onOver={() => setHover('y')} onOut={() => setHover(null)} />
-          <AxisArrow dir={new THREE.Vector3(0, 0, 1)} length={2.6} color="#4c8dff" active={mode === 'z' || hover === 'z'} onDown={grab('z')} onOver={() => setHover('z')} onOut={() => setHover(null)} />
-        </group>
-      )}
-      {/* ground footprint marker so the actor's world position reads on the floor */}
-      <mesh position={[center.x, 0.03, center.z]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={1}>
+      {/* ground footprint marker so the actor's position on the wall reads on the floor */}
+      <mesh position={[sp.x, 0.03, sp.z]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={1}>
         <ringGeometry args={[0.55, 0.75, 32]} />
         <meshBasicMaterial color="#ffb347" transparent opacity={0.8} side={THREE.DoubleSide} depthTest={false} />
       </mesh>
+      {/* aim reticle + link line: shows the camera has trucked off the subject to compose */}
+      {showAim && (
+        <>
+          <Line points={[center, aim]} color="#7fd6ea" lineWidth={1.4} dashed dashSize={0.4} gapSize={0.3} transparent opacity={0.7} depthTest={false} renderOrder={6} />
+          <mesh position={aim.toArray()} rotation={[-Math.PI / 2, 0, 0]} renderOrder={6}>
+            <ringGeometry args={[0.32, 0.46, 28]} />
+            <meshBasicMaterial color="#7fd6ea" transparent opacity={0.85} side={THREE.DoubleSide} depthTest={false} />
+          </mesh>
+        </>
+      )}
     </>
   )
 }
 
 // ---- viewfinder: what the camera frames; background shifts with the camera VIEW (like a real lens) ----
 function Viewfinder({ backdropUrl, dims, anchor }: { backdropUrl: string; dims: SevenDims; anchor: Anchor }) {
-  const focus = dims.composition.focus ?? { x: 0.5, y: 0.5 }
-  const zoom = dims.composition.zoom ?? 1
-  const eff = dims.distanceM / zoom // effective shot distance
-  const sizeFrac = clamp(2.4 / eff, 0.14, 1.7) // subject height as fraction of frame
   const dof = dims.focal?.dof ?? 0.5
   const bgBlur = (1 - dof) * 7 // shallow DoF → blurred background
   // color.saturation / contrast are −50..50 → CSS saturate()/contrast() multipliers around 1.0
@@ -772,39 +840,54 @@ function Viewfinder({ backdropUrl, dims, anchor }: { backdropUrl: string; dims: 
   const lightCol = warm < 0.5 ? '210,228,255' : '255,236,200'
   // subtle key-light wash + soft vignette: low key = moody/dark edges, high key = bright/clean
   const lightOverlay = `radial-gradient(135% 135% at ${lp.x * 100}% ${lp.y * 100}%, rgba(${lightCol},${0.05 + key * 0.12}) 0%, rgba(0,0,0,${0.06 + (1 - key) * 0.2}) 82%)`
-  // background = the FIXED backdrop as seen by the shot camera looking at the actor.
-  // Extend the camera→actor view ray to the backdrop plane (z=BACKDROP_Z): the hit point is what sits
-  // behind the subject. Orbit / tilt / the actor's world position all move it; a reverse angle puts the
-  // backdrop behind the camera (hitS<0) → it leaves the frame, so the viewfinder shows an empty scene.
+  // The viewfinder is a straight CROP of the fixed photo — no drawn subject. The photo is a fixed plane in
+  // the world; the camera frame projects onto it, and we show exactly the photo region inside that frame.
+  // Move the rig / compose off-centre → the crop pans across the photo (the subject, being part of the
+  // photo, moves with it). Frame wider than the photo → the photo doesn't fill the finder and black shows.
   const aCenter = actorPos(anchor)
-  const cam = camWorld(dims, aCenter)
-  const dir = aCenter.clone().sub(cam).normalize()
+  const aimC = aimCenter(dims, aCenter)
+  const cam = camWorld(dims, aimC)
+  // project the camera frame onto the fixed photo plane (z = BACKDROP_Z). frameBasis gives the frame's
+  // half-extents there (metres). The photo occupies x∈[−WALL_W/2, WALL_W/2], y∈[0, WALL_H].
+  const { halfW: fHW, halfH: fHH } = frameBasis(dims, aimC)
+  const dir = aimC.clone().sub(cam).normalize()
   const hitS = Math.abs(dir.z) > 1e-3 ? (BACKDROP_Z - cam.z) / dir.z : -1
   const bgVisible = hitS > 0
-  let bgX = 50, bgY = 50, bgZoom = 150
-  if (bgVisible) {
-    bgX = clamp(((cam.x + dir.x * hitS) / WALL_W + 0.5) * 100, -30, 130)
-    bgY = clamp((1 - (cam.y + dir.y * hitS) / WALL_H) * 100, -30, 130)
-    bgZoom = clamp((2800 / hitS) * zoom, 110, 340) // nearer backdrop / longer lens → larger
-  }
+  const ctr = cam.clone().addScaledVector(dir, hitS) // frame centre on the photo plane
+  // Place the photo as an absolutely-positioned image inside the finder (exact geometry — avoids the CSS
+  // background-position percentage trap when the photo is smaller than the frame). Finder-left maps to
+  // world x = ctr.x − fHW, finder-top to world y = ctr.y + fHH. Everything the photo doesn't cover is black.
+  const imgLeft = ((-WALL_W / 2 - (ctr.x - fHW)) / (2 * fHW)) * 100
+  const imgTop = (((ctr.y + fHH) - WALL_H) / (2 * fHH)) * 100
+  const imgW = (WALL_W / (2 * fHW)) * 100
+  const imgH = (WALL_H / (2 * fHH)) * 100
+  // the SUBJECT is an independent element (the boy), NOT part of the backdrop photo. Project the fixed
+  // actor position into the camera frame → its silhouette position + size in the finder. Since aim is
+  // derived from focus, the actor lands at `focus`; distance sets how tall it reads (near = large).
+  const SUBJECT_H = 3.4 // subject world height (m) — tuned so a medium shot frames head-to-waist
+  const silX = clamp(0.5 + (aCenter.x - ctr.x) / (2 * fHW), -0.2, 1.2) * 100
+  const silY = clamp(0.5 - (aCenter.y - ctr.y) / (2 * fHH), -0.2, 1.2) * 100
+  const silH = clamp((SUBJECT_H / (2 * fHH)) * 100, 8, 220) // % of finder height
+  const silW = silH * 0.42 // silhouette aspect
   return (
-    <div className="pointer-events-none absolute bottom-3 left-3 z-10 w-72 overflow-hidden rounded-lg border border-white/25 shadow-2xl" style={{ aspectRatio: '16 / 9' }}>
+    <div className="pointer-events-none absolute bottom-3 left-3 z-10 overflow-hidden rounded-lg border border-white/25 bg-black shadow-2xl" style={{ width: '18rem', aspectRatio: '16 / 9' }}>
       {bgVisible ? (
-        <div
-          className="absolute inset-0"
-          style={{ backgroundImage: `url(${backdropUrl})`, backgroundSize: `${bgZoom}%`, backgroundPosition: `${bgX}% ${bgY}%`, filter: `blur(${bgBlur}px) saturate(${sat}) contrast(${con})` }}
+        <img
+          src={backdropUrl}
+          alt=""
+          className="absolute max-w-none"
+          style={{ left: `${imgLeft}%`, top: `${imgTop}%`, width: `${imgW}%`, height: `${imgH}%`, filter: `blur(${bgBlur}px) saturate(${sat}) contrast(${con})` }}
         />
       ) : (
-        // reverse angle — the photo is behind the camera. Show the subject's reverse view: a restrained
-        // frosted domain (the reverse-background container), not the photo.
-        <div className="absolute inset-0" style={{ background: 'radial-gradient(125% 125% at 50% 38%, #5c6470 0%, #353b44 55%, #20252c 100%)' }}>
-          <div className="absolute inset-2 rounded border border-dashed border-white/25" />
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-medium tracking-wide text-white/55">Reverse BG</div>
+        // reverse angle — the photo is behind the camera; nothing of the photo is framed. Plain black.
+        <div className="absolute inset-0 bg-black">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-medium tracking-wide text-white/45">No backdrop (reverse angle)</div>
         </div>
       )}
-      <div className="absolute" style={{ left: `${focus.x * 100}%`, top: `${focus.y * 100}%`, width: `${sizeFrac * 58}%`, height: `${sizeFrac * 100}%`, transform: 'translate(-50%, -50%)' }}>
+      {/* the SUBJECT — an independent element projected into the frame (not part of the backdrop photo) */}
+      <div className="absolute" style={{ left: `${silX}%`, top: `${silY}%`, width: `${silW}%`, height: `${silH}%`, transform: 'translate(-50%, -50%)' }}>
         <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" className="h-full w-full" style={{ filter: `blur(${(1 - dof) * 1.1}px)` }}>
-          <path d="M50 6 a17 17 0 1 1 -0.1 0 Z M16 100 q0 -48 34 -48 q34 0 34 48 Z" fill="#0e1722" opacity={0.88} />
+          <path d="M50 6 a17 17 0 1 1 -0.1 0 Z M16 100 q0 -48 34 -48 q34 0 34 48 Z" fill="#0e1722" opacity={0.9} />
         </svg>
       </div>
       {tint !== 'transparent' && <div className="absolute inset-0" style={{ background: tint, mixBlendMode: 'soft-light' }} />}
@@ -831,8 +914,14 @@ function Viewfinder({ backdropUrl, dims, anchor }: { backdropUrl: string; dims: 
 }
 
 export function CameraStage3D({ backdropUrl, dims, anchor, compMode = false, moveMode = false, lightMode = false, onExitComp, onExitMove, onExitLight, onDraftChange, onCommit }: Props) {
-  // orbit center = the subject's world position (camera rig follows the actor; backdrop is fixed)
+  // No custom contextmenu handler — Drei OrbitControls handles it internally
+  // in its own useEffect, which fires at the correct time.
+  // actor position on the backdrop wall (for SubjectGizmo, SceneLight, ReverseBackdrop)
   const center = actorPos(anchor)
+  // the camera's aim/orbit centre is DERIVED from composition.focus: to frame the (fixed) actor at
+  // focus, the camera slides opposite. All camera-side geometry (gizmo, rings, tilt arc, frustum, path)
+  // orbits THIS point, so changing focus — via grid, capsule, or right-drag — physically moves the rig.
+  const aim = aimCenter(dims, center)
   // reverse-view region: camera has crossed to the far side of the subject (photo now behind the lens)
   const reverse = Math.cos(THREE.MathUtils.degToRad(dims.angle.yaw)) < 0
   const path = dims.movement.path ?? []
@@ -850,16 +939,24 @@ export function CameraStage3D({ backdropUrl, dims, anchor, compMode = false, mov
     onCommit()
   }
   return (
-    <div className="absolute inset-0 overflow-hidden rounded-xl bg-black">
-      <Canvas shadows camera={{ position: [7, 11, 27], fov: 46 }}>
+    // Suppress the browser context menu so right-drag (truck on the camera body, pan on empty space)
+    // never pops a menu — OrbitControls only blocks it while enabled, and body-truck disables it.
+    <div className="absolute inset-0 overflow-hidden rounded-xl bg-black" onContextMenu={(e) => e.preventDefault()}>
+      <Canvas
+        shadows
+        camera={{ position: [7, 11, 27], fov: 46 }}
+        // Prevent Safari/Firefox from handling pointer events as gestures, ensuring
+        // OrbitControls receives all right-down/right-move/right-up for Pan.
+        style={{ touchAction: 'none' }}
+      >
         <color attach="background" args={['#060708']} />
         <fog attach="fog" args={['#060708', 70, 160]} />
         <ambientLight intensity={0.9} />
         <hemisphereLight args={['#cfd9e6', '#3a4048', 0.6]} />
         <SceneLight lighting={dims.lighting} center={center} />
-        {/* grid sits on the orbit-ring plane (the subject's height), so the ring lies on the grid */}
+        {/* grid sits on the orbit-ring plane (WALL_CENTER.y), so the ring lies on the grid */}
         <Grid
-          position={[0, center.y + 0.02, 0]}
+          position={[0, WALL_CENTER.y + 0.02, 0]}
           args={[DIST_MAX * 2 + 4, DIST_MAX * 2 + 4]}
           cellSize={2}
           cellThickness={0.6}
@@ -871,19 +968,34 @@ export function CameraStage3D({ backdropUrl, dims, anchor, compMode = false, mov
           fadeStrength={1}
           side={THREE.DoubleSide}
         />
-        <SubjectGizmo backdropUrl={backdropUrl} dims={dims} anchor={anchor} compMode={compMode} center={center} onDraftChange={onDraftChange} onCommit={onCommit} />
-        {!compMode && <ShotRings dims={dims} center={center} />}
-        <CameraRing dims={dims} center={center} />
-        <TiltArc dims={dims} center={center} />
-        {moveMode && <MovePath dims={dims} center={center} />}
-        <ViewFrustum dims={dims} center={center} compMode={compMode} />
-        <CameraGizmo dims={dims} center={center} onDraftChange={onDraftChange} onCommit={onCommit} />
+        {!compMode && <ShotRings dims={dims} center={aim} />}
+        <CameraRing dims={dims} center={aim} />
+        <TiltArc dims={dims} center={aim} />
+        {moveMode && <MovePath dims={dims} center={aim} />}
+        <ViewFrustum dims={dims} center={aim} compMode={compMode} />
+        <CameraGizmo dims={dims} center={aim} onDraftChange={onDraftChange} onCommit={onCommit} />
         {lightMode && <SunGizmo lighting={dims.lighting} center={center} onDraftChange={onDraftChange} onCommit={onCommit} />}
         <Suspense fallback={null}>
           <BackdropWall url={backdropUrl} reverse={reverse} />
         </Suspense>
+        {/* SubjectGizmo must render AFTER the backdrop so it always sits ON TOP of the photo, not behind any
+            semi-transparent layers (dark scrim, reverse backdrop, etc.) */}
+        <SubjectGizmo dims={dims} center={center} aim={aim} onDraftChange={onDraftChange} onCommit={onCommit} />
         {reverse && <ReverseBackdrop anchor={anchor} center={center} />}
-        <CameraObserve center={center} />
+        {/* The scene's view camera. makeDefault publishes it to useThree(s => s.controls),
+            which every gizmo reads to suspend orbiting (controls.enabled = false) while dragging —
+            without makeDefault that ref stays null and the gizmos fight the camera, flinging the scene.
+            Orbits around the fixed WALL_CENTER so it matches the gizmo/ring geometry. */}
+        <OrbitControls
+          makeDefault
+          target={[WALL_CENTER.x, WALL_CENTER.y, WALL_CENTER.z]}
+          enableDamping
+          dampingFactor={0.12}
+          minDistance={8}
+          maxDistance={80}
+          maxPolarAngle={Math.PI - 0.05}
+          mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }}
+        />
       </Canvas>
       {/* top-left readout cards (hidden while composing to keep the framing clean) */}
       {!compMode && (

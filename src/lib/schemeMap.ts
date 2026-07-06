@@ -6,7 +6,26 @@ import { zoneOf, levelOf } from './dims'
 import { defaultRoleKey } from './shotRoles'
 
 // Chinese cinematic-semantic phrases kept on purpose for the (Chinese) Dreamina image model in dimsToPatch.
-const moveCN = (type: string): string => ({ 'Dolly In': '推进·逼近', 'Dolly Out': '拉远·抽离', Pan: '横摇·环视', Truck: '平移·伴随', Follow: '跟随·代入', Crane: '升降·宏大' } as Record<string, string>)[type] ?? '固定·凝滞'
+const moveCN = (type: string): string => ({ 'Dolly In': '推进·逼近', 'Dolly Out': '拉远·抽离', Pan: '横摇·环视', Truck: '平移·伴随', Follow: '跟随·代入', Crane: '升降·宏大', Custom: '自定义轨迹', Static: '固定·凝滞' } as Record<string, string>)[type] ?? '固定·凝滞'
+
+// 运镜 → 视频生成用的文本。预设走 moveCN;Custom 把画布录的相机关键帧轨迹(path)翻成自然语
+// 运动描述(推进/拉远 + 环绕/横移 + 升降),否则轨迹丢失、Custom 会被误当成固定镜头。
+function movePhrase(m: SevenDims['movement']): string {
+  if (m.type !== 'Custom') return `${m.type}(${moveCN(m.type)})`
+  const path = m.path
+  if (!path || path.length < 2) return '自定义运镜(轨迹未录制,视为轻微移动)'
+  const a = path[0]!, b = path[path.length - 1]!
+  const seg: string[] = []
+  const dd = b.dist - a.dist
+  if (dd < -0.5) seg.push('镜头推进、逼近主体')
+  else if (dd > 0.5) seg.push('镜头拉远、抽离主体')
+  if (Math.abs(b.yaw - a.yaw) > 8) seg.push('绕主体做环绕/横向移动')
+  const dp = b.pitch - a.pitch
+  if (dp > 5) seg.push('机位升高、转为俯视')
+  else if (dp < -5) seg.push('机位降低、转为仰视')
+  if (path.length > 2) seg.push('轨迹含中间转折、运动连贯')
+  return `自定义运镜:${seg.length ? seg.join('、') : '小幅平滑移动'}`
+}
 const timeCN = (sec: number): string => (sec <= 2 ? '急促·紧张' : sec >= 6 ? '舒缓·凝滞' : '平稳·叙事')
 
 const has = (s: string, ...keys: string[]) => keys.some((k) => s.includes(k))
@@ -338,6 +357,22 @@ function conciseHint(d: SevenDims): string {
   else if (fy > 0.62) comp.push('主体位置偏下、上方留白')
   if (Math.abs(d.composition.balance ?? 0) > 0.3) comp.push('刻意失衡构图、营造视觉张力')
   parts.push(comp.join('、'))
+  // 光影:用户在 3D 场景里布的光 → 自然语(方向 + 高低调 + 软硬 + 聚泛),不出数字/开尔文,
+  // 避免长参数式 prompt 淹没编辑。色温不写这里(与下方 color 的冷暖重复,交给 color 段统一处理)。
+  const lg = d.lighting
+  const ly = lg.pos?.y ?? 0.18, lx = lg.pos?.x ?? 0.5
+  const dirZh = `${ly < 0.34 ? '高位' : ly > 0.66 ? '低位' : '水平'}${lx < 0.4 ? '左侧' : lx > 0.6 ? '右侧' : '正面'}`
+  const lightParts = [`主光从${dirZh}方向照向主体`]
+  const kp = lg.keyPct ?? 60
+  if (kp < 35) lightParts.push('低调布光、暗部为主、明暗反差强（压抑神秘）')
+  else if (kp > 75) lightParts.push('高调布光、整体明亮通透')
+  const sfV = lg.softness ?? 0.5
+  if (sfV < 0.34) lightParts.push('硬光、阴影边缘锐利、光影戏剧化')
+  else if (sfV > 0.66) lightParts.push('柔光、明暗过渡柔和')
+  const spV = lg.spread ?? 0.4
+  if (spV < 0.34) lightParts.push('聚光、光斑集中于主体')
+  else if (spV > 0.66) lightParts.push('泛光、大面积均匀照明')
+  parts.push(lightParts.join('、'))
   const look = (d.color.look || '').toLowerCase()
   if (look.includes('warm')) parts.push('整体暖色调（画面偏暖橙、白平衡偏暖）')
   else if (look.includes('teal')) parts.push('青橙色调（暗部冷青、肤色暖橙的冷暖对比）')
@@ -354,12 +389,14 @@ function conciseHint(d: SevenDims): string {
 
 export function dimsToPatch(d: SevenDims, order: number): PatchOp[] {
   const p = (field: string, value: string): PatchOp => ({ shot_order: order, field, value })
+  // composition.focus is the single source of truth for framing — the editor moves the CAMERA to place
+  // the (fixed) subject at focus, so the backed-in focus already describes the intended off-centre framing.
   const hint = conciseHint(d)
   return [
     p('shot_size', shotPhrase(d)),
     p('angle', `${orbitPhrase(d.angle.yaw)};${pitchPhrase(d.angle.pitch)}`), // 水平 + 垂直机位(十维无独立水平字段)
     p('composition', compPhrase(d.composition)),
-    p('movement', `${d.movement.type}(${moveCN(d.movement.type)})`),
+    p('movement', movePhrase(d.movement)),
     p('focal_length', focalPhrase(d.focal.mm)),
     p('depth_of_field', dofPhrase(d.focal.dof)),
     p('lighting', lightPhrase(d.lighting)),

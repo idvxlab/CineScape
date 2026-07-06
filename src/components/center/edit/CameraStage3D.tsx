@@ -8,6 +8,10 @@ import { orbitMeaning, angleMeaning, shotSizeMeaning } from '../../../lib/semant
 
 interface Props {
   backdropUrl: string
+  // true once backdropUrl is the person-REMOVED clean plate (backplate). While false the URL is still the
+  // raw upload (person present) — we must NOT show it as the scene backdrop, or the person appears twice
+  // (once baked into the wall, once as the subject). Show a "generating clean plate" placeholder instead.
+  backdropReady?: boolean
   dims: SevenDims
   anchor: Anchor
   compMode?: boolean
@@ -49,16 +53,17 @@ const WALL_CENTER = new THREE.Vector3(0, SUBJECT_Y, BACKDROP_Z)
 // composition.focus in the frame, the camera's aim centre (what the frame is built around) shifts the
 // OPPOSITE way — focus right/up ⇒ aim (and the whole rig) slides left/down, so the actor lands top-right.
 // This is the "reframe by moving the camera, never the subject" principle, made literal.
-const FOCUS_LAT_MAX = WALL_W / 2 // aim can slide up to half the photo width/height off the actor
-const FOCUS_VERT_MAX = WALL_H / 2
-// aim centre = actor's wall position shifted opposite to the focus offset, scaled by the on-screen frame size.
+// aim centre = actor's wall position shifted opposite to the focus offset, scaled by the on-screen frame
+// size. Uses the EXACT same frame half-extents as frameBasis()/ViewFrustum (visR distance · 42°/zoom vfov,
+// 16:9, NO clamp) so the 3D stage's subject/frustum lands the subject on focus identically to the
+// viewfinder — otherwise (base-42° + clamp) the two disagree by a few % at extreme sizes / zoom.
+function frameHalfExtents(dims: SevenDims) {
+  const halfH = visR(dims.distanceM) * Math.tan(THREE.MathUtils.degToRad(42 / (dims.composition.zoom ?? 1)) / 2)
+  return { halfH, halfW: (halfH * 16) / 9 }
+}
 function aimCenter(dims: SevenDims, actor: THREE.Vector3): THREE.Vector3 {
   const f = dims.composition.focus ?? { x: 0.5, y: 0.5 }
-  // frame half-extents on the actor plane (metres). NOTE: uses the BASE 42° vfov WITHOUT zoom on purpose —
-  // focus is "where the subject sits in frame" (a normalised position), so its world anchor must not depend
-  // on focal length. Folding zoom in here made the rig drift sideways whenever you changed the lens.
-  const halfH = clamp(visR(dims.distanceM) * Math.tan(THREE.MathUtils.degToRad(42) / 2), 0.5, FOCUS_VERT_MAX)
-  const halfW = clamp((halfH * 16) / 9, 0.5, FOCUS_LAT_MAX)
+  const { halfW, halfH } = frameHalfExtents(dims)
   // focus.x > 0.5 (actor right of frame) ⇒ aim left of actor; focus.y > 0.5 (actor low) ⇒ aim above actor
   const dx = -(f.x - 0.5) * 2 * halfW
   const dy = (f.y - 0.5) * 2 * halfH
@@ -644,6 +649,28 @@ function SceneLight({ lighting, center }: { lighting: SevenDims['lighting']; cen
   )
 }
 
+// ---- placeholder wall while the clean plate (person removed) is still generating. A neutral panel in the
+//      exact backdrop footprint, so the stage geometry reads the same but no person is baked into it. ----
+function PlaceholderWall() {
+  return (
+    <group position={[0, 0, BACKDROP_Z]}>
+      <mesh position={[0, WALL_H / 2, 0]}>
+        <planeGeometry args={[WALL_W, WALL_H]} />
+        <meshBasicMaterial color="#141a22" transparent opacity={0.55} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+      <mesh position={[0, WALL_H / 2, -0.08]}>
+        <planeGeometry args={[WALL_W + 0.5, WALL_H + 0.5]} />
+        <meshBasicMaterial color="#2a333f" transparent opacity={0.6} side={THREE.DoubleSide} />
+      </mesh>
+      <Html position={[0, WALL_H / 2, 0.05]} center zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
+        <div className="whitespace-nowrap rounded-md border border-white/20 bg-black/50 px-2.5 py-1.5 text-[11px] font-medium tracking-wide text-white/70 backdrop-blur">
+          Generating clean plate…
+        </div>
+      </Html>
+    </group>
+  )
+}
+
 // ---- standing photo backdrop: FIXED in the world, behind the subject along world −z.
 //      The camera orbits the subject freely; a front shot frames the subject against the backdrop,
 //      while a reverse angle swings the rig to the far side and the backdrop leaves the frame
@@ -766,12 +793,11 @@ function SubjectGizmo({ dims, onDraftChange, onCommit, center, aim }: Pick<Props
     if (!raycaster.ray.intersectPlane(plane, hit)) return
     const px = clamp(hit.x / WALL_W + 0.5, 0, 1)        // world x ∈ [−W/2,W/2] → 0..1
     const py = clamp(1 - hit.y / WALL_H, 0, 1)          // world y ∈ [0,H] → 1..0 (point2d.y is top-down)
-    // hold the camera fixed: choose focus so aimCenter(new actor, focus) == aim0 (base 42° frame, no zoom,
-    // matching aimCenter). aim = actor + dx/dy where dx=−(fx−.5)·2halfW, dy=(fy−.5)·2halfH.
-    // FULL PRECISION on purpose — rounding point2d/focus here (they span 0..1, so round1 ≈ several metres)
-    // breaks the aim==aim0 cancellation and the camera jitters/drifts. Round only at commit if needed.
-    const halfH = clamp(visR(dims.distanceM) * Math.tan(THREE.MathUtils.degToRad(42) / 2), 0.5, FOCUS_VERT_MAX)
-    const halfW = clamp((halfH * 16) / 9, 0.5, FOCUS_LAT_MAX)
+    // hold the camera fixed: choose focus so aimCenter(new actor, focus) == aim0. Uses the SAME frame
+    // half-extents as aimCenter (frameHalfExtents) so the inverse is exact. aim = actor + dx/dy where
+    // dx=−(fx−.5)·2halfW, dy=(fy−.5)·2halfH. FULL PRECISION on purpose — rounding point2d/focus here (they
+    // span 0..1, so round1 ≈ several metres) breaks the aim==aim0 cancellation and the camera jitters.
+    const { halfW, halfH } = frameHalfExtents(dims)
     const fx = 0.5 - (aim0.current.x - hit.x) / (2 * halfW)
     const fy = 0.5 + (aim0.current.y - hit.y) / (2 * halfH)
     onDraftChange({
@@ -825,7 +851,7 @@ function SubjectGizmo({ dims, onDraftChange, onCommit, center, aim }: Pick<Props
 }
 
 // ---- viewfinder: what the camera frames; background shifts with the camera VIEW (like a real lens) ----
-function Viewfinder({ backdropUrl, dims, anchor }: { backdropUrl: string; dims: SevenDims; anchor: Anchor }) {
+function Viewfinder({ backdropUrl, backdropReady = true, dims, anchor }: { backdropUrl: string; backdropReady?: boolean; dims: SevenDims; anchor: Anchor }) {
   const dof = dims.focal?.dof ?? 0.5
   const bgBlur = (1 - dof) * 7 // shallow DoF → blurred background
   // color.saturation / contrast are −50..50 → CSS saturate()/contrast() multipliers around 1.0
@@ -861,22 +887,41 @@ function Viewfinder({ backdropUrl, dims, anchor }: { backdropUrl: string; dims: 
   const imgTop = (((ctr.y + fHH) - WALL_H) / (2 * fHH)) * 100
   const imgW = (WALL_W / (2 * fHW)) * 100
   const imgH = (WALL_H / (2 * fHH)) * 100
-  // the SUBJECT is an independent element (the boy), NOT part of the backdrop photo. Project the fixed
-  // actor position into the camera frame → its silhouette position + size in the finder. Since aim is
-  // derived from focus, the actor lands at `focus`; distance sets how tall it reads (near = large).
+  // ORBIT / TILT → keystone: the photo is a flat wall; viewing it off-axis foreshortens it into a
+  // trapezoid. Depict with a CSS 3D rotation of the photo about the frame centre (the optical axis /
+  // subject). Yaw turns the wall about vertical, pitch about horizontal. Clamped to <82° so it never
+  // collapses to an invisible edge (past ±90° bgVisible already flips to the reverse-angle black state).
+  const keyYaw = clamp(dims.angle.yaw, -82, 82)   // rotateY: camera on +x side ⇒ wall's right edge recedes
+  const keyPitch = clamp(dims.angle.pitch, -82, 82) // rotateX: high angle (pitch>0, looking down) tips top back
+  // rotation pivot = the frame centre expressed in the photo image's own local %
+  const originX = ((50 - imgLeft) / imgW) * 100
+  const originY = ((50 - imgTop) / imgH) * 100
+  const photoTransform = `rotateY(${-keyYaw}deg) rotateX(${keyPitch}deg)`
+  // the SUBJECT is an independent element (the boy), NOT part of the backdrop photo. Its in-frame position
+  // IS composition.focus BY DEFINITION — so read focus directly rather than back-projecting the world
+  // position (that route accumulates the aim-clamp + zoom-vs-base-frame mismatch and drifts the subject a
+  // few % off). This makes the 3×3 grid land the subject EXACTLY on the rule-of-thirds intersections
+  // (focus 1/3 or 2/3 → silhouette dead on the line). Distance still sets how tall it reads.
+  const focus = dims.composition.focus ?? { x: 0.5, y: 0.5 }
   const SUBJECT_H = 3.4 // subject world height (m) — tuned so a medium shot frames head-to-waist
-  const silX = clamp(0.5 + (aCenter.x - ctr.x) / (2 * fHW), -0.2, 1.2) * 100
-  const silY = clamp(0.5 - (aCenter.y - ctr.y) / (2 * fHH), -0.2, 1.2) * 100
+  const silX = focus.x * 100
+  const silY = focus.y * 100
   const silH = clamp((SUBJECT_H / (2 * fHH)) * 100, 8, 220) // % of finder height
   const silW = silH * 0.42 // silhouette aspect
   return (
-    <div className="pointer-events-none absolute bottom-3 left-3 z-10 overflow-hidden rounded-lg border border-white/25 bg-black shadow-2xl" style={{ width: '18rem', aspectRatio: '16 / 9' }}>
-      {bgVisible ? (
+    <div className="pointer-events-none absolute bottom-3 left-3 z-10 overflow-hidden rounded-lg border border-white/25 bg-black shadow-2xl" style={{ width: '18rem', aspectRatio: '16 / 9', perspective: '620px' }}>
+      {!backdropReady ? (
+        // clean plate (person removed) not ready — do NOT show the raw upload (it still has the person,
+        // which would double up with the subject silhouette). Neutral placeholder until the plate lands.
+        <div className="absolute inset-0 bg-[#141a22]">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-medium tracking-wide text-white/50">Generating clean plate…</div>
+        </div>
+      ) : bgVisible ? (
         <img
           src={backdropUrl}
           alt=""
           className="absolute max-w-none"
-          style={{ left: `${imgLeft}%`, top: `${imgTop}%`, width: `${imgW}%`, height: `${imgH}%`, filter: `blur(${bgBlur}px) saturate(${sat}) contrast(${con})` }}
+          style={{ left: `${imgLeft}%`, top: `${imgTop}%`, width: `${imgW}%`, height: `${imgH}%`, transformOrigin: `${originX}% ${originY}%`, transform: photoTransform, filter: `blur(${bgBlur}px) saturate(${sat}) contrast(${con})` }}
         />
       ) : (
         // reverse angle — the photo is behind the camera; nothing of the photo is framed. Plain black.
@@ -913,7 +958,7 @@ function Viewfinder({ backdropUrl, dims, anchor }: { backdropUrl: string; dims: 
   )
 }
 
-export function CameraStage3D({ backdropUrl, dims, anchor, compMode = false, moveMode = false, lightMode = false, onExitComp, onExitMove, onExitLight, onDraftChange, onCommit }: Props) {
+export function CameraStage3D({ backdropUrl, backdropReady = true, dims, anchor, compMode = false, moveMode = false, lightMode = false, onExitComp, onExitMove, onExitLight, onDraftChange, onCommit }: Props) {
   // No custom contextmenu handler — Drei OrbitControls handles it internally
   // in its own useEffect, which fires at the correct time.
   // actor position on the backdrop wall (for SubjectGizmo, SceneLight, ReverseBackdrop)
@@ -976,7 +1021,9 @@ export function CameraStage3D({ backdropUrl, dims, anchor, compMode = false, mov
         <CameraGizmo dims={dims} center={aim} onDraftChange={onDraftChange} onCommit={onCommit} />
         {lightMode && <SunGizmo lighting={dims.lighting} center={center} onDraftChange={onDraftChange} onCommit={onCommit} />}
         <Suspense fallback={null}>
-          <BackdropWall url={backdropUrl} reverse={reverse} />
+          {backdropReady
+            ? <BackdropWall url={backdropUrl} reverse={reverse} />
+            : <PlaceholderWall />}
         </Suspense>
         {/* SubjectGizmo must render AFTER the backdrop so it always sits ON TOP of the photo, not behind any
             semi-transparent layers (dark scrim, reverse backdrop, etc.) */}
@@ -1006,7 +1053,7 @@ export function CameraStage3D({ backdropUrl, dims, anchor, compMode = false, mov
           <FrostCard icon="⇲" label="Subject → Backdrop" value={`${(anchor.depthM ?? 8.5).toFixed(1)} m`} />
         </div>
       )}
-      <Viewfinder backdropUrl={backdropUrl} dims={dims} anchor={anchor} />
+      <Viewfinder backdropUrl={backdropUrl} backdropReady={backdropReady} dims={dims} anchor={anchor} />
       {/* movement recorder — only while in keyframe-editing mode */}
       {moveMode && (
         <div className="pointer-events-auto absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2">

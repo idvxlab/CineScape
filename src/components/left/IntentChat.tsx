@@ -59,8 +59,9 @@ export function IntentChat() {
 
   const onReasoning: OnReasoning = (delta) => setLive((s) => s + delta)
 
-  // project a backend turn into the chat: reflection = normal reply (the streamed thinking is transient)
+  // Keep the completed reasoning trace as a muted message so it can be reviewed.
   const applyTurn = (t: IntentTurn) => {
+    if (t.reasoning?.trim()) push('assistant', nameCodes(t.reasoning.trim()), true)
     if (t.reflection) push('assistant', nameCodes(t.reflection))
     setTurn(t.phase === 'align' || t.phase === 'confirm' ? t : null)
     if (t.tags?.length) setTags(t.tags)
@@ -172,8 +173,19 @@ export function IntentChat() {
           </div>
         )}
 
-        {/* thinking indicator — the raw reasoning stream is hidden because it is in Chinese */}
-        {loading && (
+        {/* Live model reasoning is visually secondary to the final answer. */}
+        {loading && live.trim() && (
+          <div className="flex gap-2" aria-live="polite">
+            <div className="grid h-7 w-7 flex-none place-items-center rounded-full bg-[#f1f3f6] text-xs text-gray-400">💭</div>
+            <div
+              ref={liveRef}
+              className="max-h-36 max-w-[82%] overflow-y-auto whitespace-pre-wrap rounded-xl border border-dashed border-[#e6e9ed] bg-[#fafbfc] px-3 py-2 text-[12px] italic leading-relaxed text-gray-400"
+            >
+              {nameCodes(live)}
+            </div>
+          </div>
+        )}
+        {loading && !live.trim() && (
           <div className="flex items-center gap-2 text-[12px] text-gray-400">
             <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-brand-soft border-t-brand" />
             Thinking…

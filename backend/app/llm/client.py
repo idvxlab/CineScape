@@ -24,6 +24,9 @@ class LLMSettings(BaseSettings):
     llm_api_key: str = ""
     llm_base_url: str = "https://api.deepseek.com/v1"
     llm_model: str = "deepseek-chat"
+    # "chat_completions" for legacy compatible providers; "responses" for
+    # reasoning models that expose summary streaming through /v1/responses.
+    llm_api_style: str = "chat_completions"
     # 视觉模型(描述用户上传的基底图);留空则尝试主模型,失败优雅降级
     llm_vision_model: str = ""
     # 图像编辑模型(逐镜渲染关键帧, ADR-0012)
@@ -49,6 +52,7 @@ class LLMClient:
         self.api_key = s.llm_api_key
         self.base_url = s.llm_base_url
         self.model = s.llm_model
+        self.api_style = s.llm_api_style
         self._client: AsyncOpenAI | None = None
 
     def _ensure_client(self) -> AsyncOpenAI:
@@ -86,6 +90,16 @@ class LLMClient:
         to the Aliyun maas compatible-mode endpoint and skip thinking. Only generate
         keeps it on. Trade-off: no live "grey reasoning" stream while thinking is off.
         """
+        if self.api_style == "responses":
+            return await self._responses_chat(
+                system_prompt,
+                user_prompt,
+                max_tokens=max_tokens,
+                json_mode=json_mode,
+                return_reasoning=return_reasoning,
+                enable_thinking=enable_thinking,
+            )
+
         kwargs = {
             "model": self.model,
             "messages": [
@@ -130,6 +144,72 @@ class LLMClient:
 
         if return_reasoning:
             if len(reasoning) > 600:  # 只取一小段思考过程展示
+                reasoning = reasoning[:600].rstrip() + "…"
+            return content, reasoning
+        return content
+
+    async def _responses_chat(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        *,
+        max_tokens: int,
+        json_mode: bool,
+        return_reasoning: bool,
+        enable_thinking: bool,
+    ) -> "str | tuple[str, str]":
+        """Call /v1/responses and forward its reasoning-summary deltas."""
+        responses_input = user_prompt
+        if json_mode:
+            # Responses providers validate the user input itself (not only
+            # `instructions`) for an explicit JSON-output request.
+            responses_input += "\n\nReturn the response as a valid JSON object."
+
+        kwargs = {
+            "model": self.model,
+            "instructions": system_prompt,
+            "input": responses_input,
+            "max_output_tokens": max_tokens,
+            "reasoning": {
+                "effort": "medium" if enable_thinking else "none",
+                "summary": "detailed" if enable_thinking else None,
+            },
+        }
+        if json_mode:
+            kwargs["text"] = {"format": {"type": "json_object"}}
+
+        cb = reasoning_stream_cb.get()
+        if cb is not None and enable_thinking:
+            stream = await self._ensure_client().responses.create(**kwargs, stream=True)
+            content = ""
+            reasoning = ""
+            async for event in stream:
+                event_type = getattr(event, "type", "")
+                delta = getattr(event, "delta", "") or ""
+                if event_type in {
+                    "response.reasoning_summary_text.delta",
+                    "response.reasoning_text.delta",
+                }:
+                    reasoning += delta
+                    try:
+                        cb(delta)
+                    except Exception:
+                        pass
+                elif event_type == "response.output_text.delta":
+                    content += delta
+        else:
+            response = await self._ensure_client().responses.create(**kwargs)
+            content = response.output_text or ""
+            reasoning = ""
+            if return_reasoning:
+                for item in response.output:
+                    if getattr(item, "type", "") != "reasoning":
+                        continue
+                    for part in getattr(item, "summary", []) or []:
+                        reasoning += getattr(part, "text", "") or ""
+
+        if return_reasoning:
+            if len(reasoning) > 600:
                 reasoning = reasoning[:600].rstrip() + "…"
             return content, reasoning
         return content

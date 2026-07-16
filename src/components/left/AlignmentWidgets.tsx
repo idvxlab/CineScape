@@ -28,6 +28,10 @@ export function AlignmentPanel({ widgets, onSubmit, disabled }: {
 }
 
 function widgetDim(w: Widget, i: number): string {
+  // memory probes have fixed response keys the backend routes on (ADR-0017):
+  // verification answers are keyed by the question id; activation by 'skill_activation'.
+  if (w.kind === 'preference_probe') return w.question_id
+  if (w.kind === 'skill_activation') return 'skill_activation'
   return 'dim' in w && w.dim ? w.dim : `${w.kind}-${i}`
 }
 
@@ -37,7 +41,7 @@ function summarize(widgets: Widget[], responses: Record<string, string | string[
   widgets.forEach((w, i) => {
     const r = responses[widgetDim(w, i)]
     if (r == null || (Array.isArray(r) && r.length === 0)) return
-    if (w.kind === 'single' || w.kind === 'multi') {
+    if (w.kind === 'single' || w.kind === 'multi' || w.kind === 'preference_probe' || w.kind === 'skill_activation') {
       const vals = Array.isArray(r) ? r : [r]
       parts.push(vals.map((v) => w.options.find((o) => o.value === v)?.label ?? v).join(', '))
     } else {
@@ -67,7 +71,46 @@ function WidgetView({ w, onAnswer, disabled }: { w: Widget; onAnswer: (v: string
           </div>
         </div>
       )
+    case 'preference_probe':
+      return <MemoryProbe prompt={w.prompt} options={w.options} tag="Remembered preference" onAnswer={onAnswer} disabled={disabled} />
+    case 'skill_activation':
+      return <MemoryProbe prompt={w.prompt} options={w.options} tag="Your preferences" onAnswer={onAnswer} disabled={disabled} />
   }
+}
+
+// ---- evolutionary-memory probe (ADR-0017): visually distinct from intent questions ----
+// One per session at most. Answering is optional — skipping it never blocks alignment.
+export function MemoryProbe({ prompt, options, tag, onAnswer, disabled }: {
+  prompt: string; options: { value: string; label: string }[]; tag: string
+  onAnswer: (v: string) => void; disabled?: boolean
+}) {
+  const [sel, setSel] = useState<string | null>(null)
+  const probeChip = (active: boolean, value: string) => {
+    if (value === 'forget')
+      return `rounded-lg border px-2 py-1 text-[11px] transition ${active ? 'border-red-400 bg-red-50 text-red-600' : 'border-slate-200 bg-white text-slate-400 hover:border-red-200 hover:text-red-500'}`
+    return `rounded-lg border px-2 py-1 text-[11px] transition ${active ? 'border-violet-500 bg-violet-500 text-white' : 'border-violet-200 bg-white text-violet-700 hover:bg-violet-50'}`
+  }
+  return (
+    <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-2">
+      <div className="mb-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-violet-500">
+        <span aria-hidden>✦</span> {tag}
+      </div>
+      <p className="mb-1.5 text-[12px] font-medium text-gray-700">{prompt}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((o) => (
+          <button
+            key={o.value}
+            className={probeChip(sel === o.value, o.value)}
+            disabled={disabled}
+            onClick={() => { setSel(o.value); onAnswer(o.value) }}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+      <p className="mt-1 text-[10px] text-violet-400">Optional — this tunes your personal preferences, not this scene's intent.</p>
+    </div>
+  )
 }
 
 const chip = (active: boolean) =>

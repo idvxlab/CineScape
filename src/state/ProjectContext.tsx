@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
 import type { Project, Plan, Shot, SevenDims, Anchor } from '../api/types'
 import { mockProject, createProjectFromImage } from '../api/mock'
-import { createSession, confirmIntent, renderScheme, animateScheme, makeBackplate, assetUrl, type IntentTurn, type ShotScript, type OnReasoning } from '../api/backend'
+import { type ActiveSkill, createSession, confirmIntent, renderScheme, animateScheme, makeBackplate, assetUrl, type IntentTurn, type ShotScript, type OnReasoning } from '../api/backend'
 import { schemesToPlans, dimsToPatch, shotReading } from '../lib/schemeMap'
 
 interface Ctx {
@@ -25,7 +25,8 @@ interface Ctx {
   sessionId: string | null
   schemes: ShotScript[] // real generated shot schemes (not mock)
   generating: boolean // scheme inference in progress
-  acceptAndGenerate(onReasoning?: OnReasoning): Promise<void> // confirm intent → backend reasons out the candidate schemes
+  acceptAndGenerate(onReasoning?: OnReasoning, probeResponse?: Record<string, string> | null): Promise<void> // confirm intent → backend reasons out the candidate schemes
+  activeSkill: ActiveSkill | null // workflow skill the user applied this session (ADR-0017), for the badge
   renderingScheme: boolean
   renderingShot: number | null // index of the single shot being re-rendered (null = whole scheme)
   animatingScheme: boolean
@@ -46,6 +47,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [referenceImage, setReferenceImage] = useState<string | null>(null) // backend /api/uploads URL (small)
   const [backplate, setBackplate] = useState<string | null>(null)
   const [makingBackplate, setMakingBackplate] = useState(false)
+  const [activeSkill, setActiveSkill] = useState<ActiveSkill | null>(null)
 
   const SEED_KEY = 'icd-demo-seed'
 
@@ -130,11 +132,12 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   }
 
   // confirm the converged intent → backend reasons out the candidate shot schemes (real, not mock)
-  const acceptAndGenerate = async (onReasoning?: OnReasoning) => {
+  const acceptAndGenerate = async (onReasoning?: OnReasoning, probeResponse?: Record<string, string> | null) => {
     if (!sessionId) return
     setGenerating(true)
     try {
-      const turn = await confirmIntent(sessionId, true, undefined, onReasoning)
+      const turn = await confirmIntent(sessionId, true, undefined, onReasoning, probeResponse)
+      setActiveSkill(turn.active_skill ?? null)
       if (turn.schemes?.length) {
         setSchemes(turn.schemes)
         // map the real schemes into editable plans → ShotStrip / Edit / activeShot all follow them
@@ -243,7 +246,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     setDirty(false)
   }
 
-  const value: Ctx = { project, activePlan, activeShot, setActivePlan, setActiveShot, editShot, dirty, saveProject, ready, analyzing, source, setSource, backplate, makingBackplate, parseIntent, loadDemo, saveDemo, sessionId, schemes, generating, acceptAndGenerate, renderingScheme, renderingShot, animatingScheme, sceneVideo, generateKeyframes, generateVideo }
+  const value: Ctx = { project, activePlan, activeShot, setActivePlan, setActiveShot, editShot, dirty, saveProject, ready, analyzing, source, setSource, backplate, makingBackplate, parseIntent, loadDemo, saveDemo, sessionId, schemes, generating, acceptAndGenerate, renderingScheme, renderingShot, animatingScheme, sceneVideo, generateKeyframes, generateVideo, activeSkill }
   return <ProjectCtx.Provider value={value}>{children}</ProjectCtx.Provider>
 }
 

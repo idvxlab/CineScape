@@ -16,6 +16,20 @@ export type Widget =
   | { kind: 'slider'; dim: string; prompt: string; ends: [string, string]; ticks?: string[] }
   | { kind: 'freetext'; dim?: string; prompt: string; suggestions: string[] }
   | { kind: 'confirm'; reflection: string }
+  // evolutionary memory probes (ADR-0017): at most one per session, piggybacked on an align round.
+  // preference_probe verifies one remembered question (a / b / open); the response key is question_id.
+  // skill_activation offers the enacted workflow skill (apply / leave / forget); key is 'skill_activation'.
+  | { kind: 'preference_probe'; question_id: string; prompt: string; options: Opt[] }
+  | { kind: 'skill_activation'; question_ids: string[]; prompt: string; options: Opt[] }
+
+// the session-level workflow skill enacted from corroborated preferences (view over the ledger)
+export interface ActiveSkill {
+  version?: number
+  source_question_ids?: string[]
+  rationale?: string
+  workflow?: { stage: string; instruction: string; fields?: string[] }[]
+  detail?: { prefer?: { field: string; values: string[] }[]; avoid?: { field: string; values: string[] }[] }
+}
 
 // one shot inside a generated scheme (the seven cinematic dimensions + rationale)
 export interface SchemeShot {
@@ -58,6 +72,8 @@ export interface IntentTurn {
   tags?: string[]
   schemes?: ShotScript[]
   reference_image?: string
+  active_skill?: ActiveSkill | null // present on the candidates turn when the user applied their preferences
+  probe?: Widget | null // memory probe shown on the confirm gate (ADR-0017), if any
 }
 
 export type OnReasoning = (delta: string) => void
@@ -107,11 +123,24 @@ async function streamCall(path: string, init: RequestInit, onReasoning?: OnReaso
   }
 }
 
-// POST /api/sessions — multipart { raw_intent, image }. Streams reasoning, returns the first (align) turn.
+// Stable per-browser user id so the evolutionary memory (preference questions,
+// workflow skills) accrues across sessions. Anonymous sessions get no personalization.
+export function getUserId(): string {
+  const KEY = 'cinescape_user_id'
+  let id = localStorage.getItem(KEY)
+  if (!id) {
+    id = `u-${crypto.randomUUID()}`
+    localStorage.setItem(KEY, id)
+  }
+  return id
+}
+
+// POST /api/sessions — multipart { raw_intent, image, user_id }. Streams reasoning, returns the first (align) turn.
 export function createSession(rawIntent: string, image: File, onReasoning?: OnReasoning): Promise<IntentTurn> {
   const fd = new FormData()
   fd.append('raw_intent', rawIntent)
   fd.append('image', image)
+  fd.append('user_id', getUserId())
   return streamCall('/sessions', { method: 'POST', body: fd }, onReasoning)
 }
 
@@ -125,11 +154,13 @@ export function respond(sessionId: string, dimResponses: Record<string, string |
 }
 
 // POST /api/sessions/{id}/confirm — accept (true) or reject (false) the converged brief/tags (streams reasoning).
-export function confirmIntent(sessionId: string, confirmed: boolean, rejectionText?: string, onReasoning?: OnReasoning): Promise<IntentTurn> {
+// probeResponse carries the memory-probe answer shown on the confirm gate, if the user gave one:
+//   verification → { question_id, answer: 'a'|'b'|'open' }; activation → { skill_activation: 'apply'|'leave'|'forget' }.
+export function confirmIntent(sessionId: string, confirmed: boolean, rejectionText?: string, onReasoning?: OnReasoning, probeResponse?: Record<string, string> | null): Promise<IntentTurn> {
   return streamCall(`/sessions/${sessionId}/confirm`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ confirmed, rejection_text: rejectionText }),
+    body: JSON.stringify({ confirmed, rejection_text: rejectionText, probe_response: probeResponse ?? null }),
   }, onReasoning)
 }
 

@@ -3,7 +3,7 @@ import { useProject } from '../../state/ProjectContext'
 import { useEditor } from '../../state/useEditor'
 import type { ChatMessage } from '../../api/types'
 import { respond, confirmIntent, type IntentTurn, type OnReasoning } from '../../api/backend'
-import { AlignmentPanel } from './AlignmentWidgets'
+import { AlignmentPanel, MemoryProbe } from './AlignmentWidgets'
 import { CODEBOOK } from '../../lib/designSpace'
 
 // Replace design-space codes (e.g. 10.2) in user-facing text with their English intent names.
@@ -41,6 +41,8 @@ export function IntentChat() {
   const [msgs, setMsgs] = useState<Msg[]>([])
   const [text, setText] = useState('')
   const [turn, setTurn] = useState<IntentTurn | null>(null) // pending align/confirm turn
+  // memory-probe answer given on the confirm gate (ADR-0017); sent with Accept, optional
+  const [probeAnswer, setProbeAnswer] = useState<Record<string, string> | null>(null)
   const [tags, setTags] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [live, setLive] = useState('') // transient streamed reasoning, shown only while waiting
@@ -61,6 +63,7 @@ export function IntentChat() {
 
   // Keep the completed reasoning trace as a muted message so it can be reviewed.
   const applyTurn = (t: IntentTurn) => {
+    setProbeAnswer(null)
     if (t.reasoning?.trim()) push('assistant', nameCodes(t.reasoning.trim()), true)
     if (t.reflection) push('assistant', nameCodes(t.reflection))
     setTurn(t.phase === 'align' || t.phase === 'confirm' ? t : null)
@@ -106,7 +109,7 @@ export function IntentChat() {
     push('assistant', 'Intent confirmed ✓ — reasoning out the candidate schemes… (~1–2 min, see Preview).')
     setLive('')
     try {
-      await acceptAndGenerate(onReasoning)
+      await acceptAndGenerate(onReasoning, probeAnswer)
       push('assistant', 'Schemes ready ✓ — open the Preview tab.')
     } catch (e: any) {
       push('assistant', `Scheme generation failed: ${e?.message ?? e}`)
@@ -165,6 +168,25 @@ export function IntentChat() {
               <div className="flex flex-wrap gap-1.5">
                 {turn.tags.map((t) => <span key={t} className="rounded bg-brand-soft px-1.5 py-0.5 text-[11px] font-medium text-brand">{t}</span>)}
               </div>
+            )}
+            {/* evolutionary-memory probe shown on the confirm gate (ADR-0017): optional, answered with Accept */}
+            {turn.probe && (turn.probe.kind === 'preference_probe' || turn.probe.kind === 'skill_activation') && (
+              <MemoryProbe
+                prompt={turn.probe.prompt}
+                options={turn.probe.options}
+                tag={turn.probe.kind === 'skill_activation' ? 'Your preferences' : 'Remembered preference'}
+                disabled={loading}
+                onAnswer={(v) => {
+                  const probe = turn.probe!
+                  setProbeAnswer(
+                    probe.kind === 'skill_activation'
+                      ? { skill_activation: v }
+                      : probe.kind === 'preference_probe'
+                        ? { question_id: probe.question_id, answer: v }
+                        : null,
+                  )
+                }}
+              />
             )}
             <div className="flex gap-2">
               <button className="flex-1 rounded-lg bg-brand py-1.5 text-xs font-medium text-white hover:opacity-90" onClick={acceptIntent}>Accept Intent</button>

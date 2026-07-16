@@ -10,14 +10,25 @@ const intentLabel = (code: string) => (CODEBOOK[code] ? `${code} ${CODEBOOK[code
 const GEN_STEPS = ['Deriving strategy directions…', 'Reasoning the A/B/C shot scripts…', 'Validating cinematic grammar…']
 
 export function PreviewTab() {
-  const { schemes, generating, project, setActivePlan } = useProject()
+  const { schemes, generating, project, setActivePlan, activeSkill } = useProject()
   const setTab = useEditor((s) => s.setTab)
 
   if (generating) return <GeneratingProgress />
   if (schemes.length === 0) return <SchemesEmpty />
   return (
     <div className="space-y-4">
-      <div className="text-sm font-semibold">Shot Schemes <span className="text-xs font-normal text-gray-400">· reasoned from your intent</span></div>
+      <div className="flex items-center gap-2 text-sm font-semibold">
+        Shot Schemes <span className="text-xs font-normal text-gray-400">· reasoned from your intent</span>
+        {activeSkill && (
+          <span
+            className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-600"
+            title={activeSkill.rationale ?? 'Developed with your confirmed preferences'}
+          >
+            <span aria-hidden>✦</span>
+            Personalized · {activeSkill.source_question_ids?.length ?? 0} preference{(activeSkill.source_question_ids?.length ?? 0) !== 1 ? 's' : ''}
+          </span>
+        )}
+      </div>
       {schemes.map((s, i) => {
         const variant = VARIANT[i] ?? String(i + 1)
         const planId = `scheme-${variant}`

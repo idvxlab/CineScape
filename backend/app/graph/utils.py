@@ -28,9 +28,27 @@ def parse_llm_json(
         data = json.loads(result)
         return data if isinstance(data, dict) else (fallback or {})
     except json.JSONDecodeError:
-        logger.warning("%s received non-JSON response from LLM", log_name)
-        logger.debug("Raw response (first 500 chars): %s", result[:500])
-        return fallback or {}
+        pass
+
+    # 容错:部分模型/网关(如 claude 经聚合网关)忽略 response_format,
+    # 把 JSON 包在 ```json 围栏里或夹带前后缀文本——剥围栏、取最外层对象再试。
+    text = result.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1] if "\n" in text else text
+        if text.rstrip().endswith("```"):
+            text = text.rstrip()[: -3]
+    start, end = text.find("{"), text.rfind("}")
+    if start != -1 and end > start:
+        try:
+            data = json.loads(text[start : end + 1])
+            if isinstance(data, dict):
+                return data
+        except json.JSONDecodeError:
+            pass
+
+    logger.warning("%s received non-JSON response from LLM", log_name)
+    logger.debug("Raw response (first 500 chars): %s", result[:500])
+    return fallback or {}
 
 
 def extract_last_user_input(messages: list) -> str:

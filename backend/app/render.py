@@ -49,6 +49,11 @@ DREAMINA_IMAGE_MODEL = os.environ.get("DREAMINA_IMAGE_MODEL", "5.0")  # 显式�
 DREAMINA_VIDEO_MODEL = os.environ.get("DREAMINA_VIDEO_MODEL", "seedance2.0fast_vip")
 DREAMINA_VIDEO_RESOLUTION = os.environ.get("DREAMINA_VIDEO_RESOLUTION", "720p")
 
+# —— OpenAI 兼容生图分支(可选) ——
+# IMAGE_API_STYLE=openai 时,关键帧编辑改走 OpenAI images/edits(如 gpt-image-2,
+# 经聚合网关);默认 dreamina 走即梦 CLI。视频路径不受影响(仍即梦)。
+# 注意经 LLMSettings 读取(.env 生效);os.environ 仅作 key/base 的显式覆盖。
+
 _CALL_TIMEOUT_S = 150     # 单次 CLI 调用上限
 _POLL_INTERVAL_S = 3      # query_result 轮询间隔
 _IMAGE_WAIT_S = 180       # 关键帧整体等待上限
@@ -339,13 +344,56 @@ def _scheme_video_prompt(segs: list[tuple[float, float, dict]], total: int) -> s
 # 单镜生成
 # ---------------------------------------------------------------------------
 async def edit_image(images: list[Path], instruction: str) -> bytes:
-    """一次关键帧:1~N 张参考图 + 指令 → 编辑后图像字节(即梦 image2image,支持多图参考)。"""
+    """一次关键帧:1~N 张参考图 + 指令 → 编辑后图像字节。
+
+    IMAGE_API_STYLE=openai → OpenAI 兼容 images/edits(如 gpt-image-2,经聚合网关);
+    默认走即梦 image2image CLI(支持多图参考)。
+    """
+    from app.llm.client import get_llm_settings
+
+    if get_llm_settings().image_api_style == "openai":
+        return await _edit_image_openai(images, instruction)
     refs = ",".join(str(p) for p in images)
     args = ["image2image", f"--images={refs}", f"--prompt={instruction}"]
     if DREAMINA_IMAGE_MODEL:
         args.append(f"--model_version={DREAMINA_IMAGE_MODEL}")
     url = await _submit_and_wait(args, kind="images", wait_s=_IMAGE_WAIT_S)
     return await _download(url)
+
+
+async def _edit_image_openai(images: list[Path], instruction: str) -> bytes:
+    """OpenAI 兼容 images/edits:参考图 + 指令 → 图像字节(b64 或 URL 两种返回都处理)。"""
+    import base64
+
+    from openai import AsyncOpenAI
+
+    from app.llm.client import get_llm_settings
+
+    s = get_llm_settings()
+    api_key = os.environ.get("IMAGE_API_KEY") or s.llm_api_key
+    base_url = os.environ.get("IMAGE_BASE_URL") or s.llm_base_url
+    model = s.image_model
+    client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+    handles = [open(p, "rb") for p in images]
+    try:
+        result = await client.images.edit(
+            model=model,
+            image=handles if len(handles) > 1 else handles[0],
+            prompt=instruction,
+        )
+    except Exception as exc:
+        raise RenderError(f"images/edits 调用失败({model}): {exc}") from exc
+    finally:
+        for h in handles:
+            h.close()
+    if not result.data:
+        raise RenderError(f"images/edits 空响应({model})")
+    item = result.data[0]
+    if getattr(item, "b64_json", None):
+        return base64.b64decode(item.b64_json)
+    if getattr(item, "url", None):
+        return await _download(item.url)
+    raise RenderError(f"images/edits 响应缺少 b64_json/url({model})")
 
 
 async def animate_image(keyframe: Path, prompt: str, duration: int) -> bytes:

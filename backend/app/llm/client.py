@@ -31,6 +31,8 @@ class LLMSettings(BaseSettings):
     llm_vision_model: str = ""
     # 图像编辑模型(逐镜渲染关键帧, ADR-0012)
     image_model: str = "qwen-image-2.0"
+    # 生图通道:"dreamina"=即梦 CLI;"openai"=OpenAI 兼容 images/edits(如 gpt-image-2)
+    image_api_style: str = "dreamina"
     embedding_model: str = "text-embedding-3-small"
     embedding_api_key: str = ""
     embedding_base_url: str = "https://api.openai.com/v1"

@@ -52,6 +52,7 @@ async def generate_node(state: SessionState) -> dict:
         knowledge,
         critic_feedback=feedback,
         image_brief=state.image_brief,
+        active_skill=state.active_skill,
     )
 
     try:

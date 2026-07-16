@@ -20,7 +20,14 @@ class RecallRecord(BaseModel):
     intent_tags: list[str]
     intent_brief: str
     shot_script: ShotScript
-    provenance: Literal["curated", "user_accepted"]
+    # ADR-0015: provenance 分级(采纳先落 unverified,追溯改级为 confirmed/disputed)
+    provenance: Literal[
+        "curated",
+        "user_accepted",
+        "adopted_unverified",
+        "adopted_confirmed",
+        "adopted_disputed",
+    ]
     quality_signal: float | None = None
 
 

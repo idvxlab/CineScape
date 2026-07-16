@@ -12,6 +12,7 @@ their absence never blocks or degrades the base path.
 
 import logging
 
+from app.evolution import reorder_directions
 from app.graph.state import SessionState
 from app.graph.utils import parse_llm_json
 from app.llm import PromptBuilder, get_llm_client
@@ -78,10 +79,13 @@ async def strategy_node(state: SessionState) -> dict:
                 "core_technique": "",
             }
         ]
-    # 方向 id 强制为按序 A/B/C:scheme_id、critic 反馈、重生成都按它映射
-    for i, d in enumerate(directions[:3]):
-        d["id"] = chr(ord("A") + i)
     directions = directions[:3]
+    # skill 只排序、不过滤(ADR-0017 集合不变式):匹配偏好机制/意图的方向排到前面,
+    # 但所有方向都保留——个性化不剥夺探索。id 在排序后再按序赋 A/B/C。
+    directions = reorder_directions(directions, state.active_skill)
+    # 方向 id 强制为按序 A/B/C:scheme_id、critic 反馈、重生成都按它映射
+    for i, d in enumerate(directions):
+        d["id"] = chr(ord("A") + i)
 
     return {
         "directions": directions,

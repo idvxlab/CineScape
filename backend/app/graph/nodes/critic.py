@@ -75,7 +75,15 @@ async def critic_node(state: SessionState) -> dict:
             codes = list(dict.fromkeys(state.tags + candidate.get("dominant_intents", [])))
             constraints = _ontology.critic_digest(codes)
             knowledge = _ontology.knowledge_digest(codes)
-            system, user = builder.critic(intent_state, candidate, constraints, knowledge)
+            # ADR-0017: 激活 skill 的 review.checks 作软检查(仅 suggestions,恒低于硬规则)
+            skill_checks = (
+                (state.active_skill or {}).get("review", {}).get("checks")
+                if state.active_skill
+                else None
+            )
+            system, user = builder.critic(
+                intent_state, candidate, constraints, knowledge, skill_checks=skill_checks
+            )
             try:
                 result = await client.chat(system, user)
                 data = parse_llm_json(result, log_name="critic")

@@ -35,3 +35,21 @@ CREATE INDEX IF NOT EXISTS idx_solution_library_embedding
 DO $$ BEGIN
     RAISE NOTICE 'cinedesign database initialized successfully';
 END $$;
+
+-- =========================================================================
+-- ADR-0017 增补:范例库 provenance 分级 + 会话溯源(依赖 solution_library,
+-- 与 pgvector 同生命周期;evolution 三表见 init-evolution.sql)
+-- =========================================================================
+ALTER TABLE solution_library
+    ADD COLUMN IF NOT EXISTS user_id      TEXT,
+    ADD COLUMN IF NOT EXISTS session_id   TEXT,
+    ADD COLUMN IF NOT EXISTS edit_summary JSONB;
+ALTER TABLE solution_library ALTER COLUMN provenance SET DEFAULT 'adopted_unverified';
+DO $$ BEGIN
+    ALTER TABLE solution_library DROP CONSTRAINT IF EXISTS solution_library_provenance_check;
+    ALTER TABLE solution_library ADD CONSTRAINT solution_library_provenance_check
+        CHECK (provenance IN (
+            'curated', 'user_accepted',
+            'adopted_unverified', 'adopted_confirmed', 'adopted_disputed'));
+EXCEPTION WHEN others THEN NULL;
+END $$;

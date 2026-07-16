@@ -30,6 +30,23 @@ from langgraph.types import Command
 from pydantic import BaseModel
 from starlette.datastructures import UploadFile
 
+from app.evolution import (
+    ACT_APPLY,
+    ACT_FORGET,
+    enact,
+    evaluate_skill_adoption,
+    load_session_trace,
+    preferred_values,
+    record_batch,
+    record_event,
+    reflect_session,
+)
+from app.evolution.questions import (
+    VALID_ANSWERS,
+    get_corroborated_applicable,
+    record_answer,
+    set_user_flag,
+)
 from app.graph.state import SessionState
 from app.llm import get_llm_client
 from app.llm.client import reasoning_stream_cb
@@ -40,6 +57,16 @@ logger = logging.getLogger(__name__)
 
 sessions_router = APIRouter()
 
+# Strong refs to background reflection tasks so the event loop doesn't GC them
+# mid-flight (asyncio only holds weak refs to tasks).
+_background_tasks: set = set()
+
+
+def _spawn_background(coro) -> None:
+    task = asyncio.create_task(coro)
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+
 
 # ---------------------------------------------------------------------------
 # Request body models
@@ -48,6 +75,13 @@ sessions_router = APIRouter()
 
 class CreateBody(BaseModel):
     raw_intent: str
+    user_id: str = "anonymous"
+
+
+class TraceBody(BaseModel):
+    """Batch of fine-grained frontend events (ADR-0017)."""
+
+    events: list[dict] = []
 
 
 class AlignRespondBody(BaseModel):
@@ -58,6 +92,10 @@ class AlignRespondBody(BaseModel):
 class ConfirmBody(BaseModel):
     confirmed: bool = True
     rejection_text: str | None = None
+    # ADR-0017: confirm 门控上展示的探针回答
+    #   验证探针 → {"question_id": ..., "answer": "a"|"b"|"open"}
+    #   激活探针 → {"skill_activation": "apply"|"leave"|"forget"}
+    probe_response: dict | None = None
 
 
 class SelectBody(BaseModel):
@@ -139,6 +177,8 @@ def _build_turn(state, session_id: str) -> dict:
                 "brief": payload.get("brief", ""),
                 "tags": payload.get("tags", []),
                 "converged": True,
+                # ADR-0017: 收敛直达 confirm 时,探针在此展示(applicability 对用户透明)
+                "probe": payload.get("probe"),
             }
         if kind == "candidates":
             return {
@@ -147,6 +187,8 @@ def _build_turn(state, session_id: str) -> dict:
                 "schemes": hydrate_frames(session_id, payload.get("schemes", [])),
                 "conflicts": payload.get("conflicts", []),
                 "selected_scheme_id": payload.get("selected_scheme_id"),
+                # ADR-0017: 候选页展示"已应用你的偏好 skill"徽标(可为空)
+                "active_skill": values.get("active_skill"),
             }
         if kind == "edit_request":
             scheme = payload.get("scheme", {})
@@ -193,6 +235,19 @@ async def _run_to_interrupt(graph, thread_id: str, input_) -> object:
     async for _chunk in graph.astream(input_, config=_config(thread_id), stream_mode="values"):
         pass
     return await graph.aget_state(_config(thread_id))
+
+
+async def _get_values(graph, session_id: str) -> dict:
+    """Fetch the current graph state values (empty dict if missing)."""
+    try:
+        state = await graph.aget_state(_config(_thread_id(session_id)))
+    except Exception:
+        return {}
+    return state.values or {}
+
+
+def _session_user_id(values: dict) -> str:
+    return values.get("user_id") or "anonymous"
 
 
 async def _resume_state(graph, session_id: str, resume_value: dict, expected_types: tuple[str, ...]):
@@ -270,9 +325,11 @@ async def create_session(request: Request):
     content_type = request.headers.get("content-type", "")
     image: UploadFile | None = None
 
+    user_id = "anonymous"
     if content_type.startswith("multipart/form-data"):
         form = await request.form()
         raw_intent = str(form.get("raw_intent") or "").strip()
+        user_id = str(form.get("user_id") or "anonymous").strip() or "anonymous"
         # form() 产出 starlette UploadFile(非 fastapi 子类),按基类判断
         candidate = form.get("image")
         if isinstance(candidate, UploadFile) and candidate.filename:
@@ -283,6 +340,7 @@ async def create_session(request: Request):
         except Exception:
             raise HTTPException(status_code=422, detail="raw_intent is required")
         raw_intent = body.raw_intent.strip()
+        user_id = body.user_id or "anonymous"
 
     if not raw_intent:
         raise HTTPException(status_code=422, detail="raw_intent is required")
@@ -313,11 +371,16 @@ async def create_session(request: Request):
         )
         initial_state = SessionState(
             raw_intent=raw_intent,
+            user_id=user_id,
             reference_image=reference_image,
             image_brief=image_brief,
         ).model_dump()
         return await _run_to_interrupt(graph, _thread_id(session_id), initial_state)
 
+    await record_event(
+        session_id, "session_start",
+        {"raw_intent": raw_intent, "has_image": True}, user_id=user_id,
+    )
     if request.query_params.get("stream") == "1":
         return await _stream_turn(session_id, runner)
     return _build_turn_response(await runner(), session_id)
@@ -326,9 +389,43 @@ async def create_session(request: Request):
 @sessions_router.post("/{session_id}/respond")
 async def respond_to_align(session_id: str, body: AlignRespondBody, request: Request):
     graph = request.app.state.graph
+    values = await _get_values(graph, session_id)
+    user_id = _session_user_id(values)
+
+    # 分离普通维度回答与探针回答(ADR-0017):验证探针的 key = question_id;
+    # skill 激活探针的 key = "skill_activation"。答案只入 trace,不在此裁决——
+    # 最终裁决(record_answer / enact / revoke)延到 confirm 门控(tags 已确认)。
+    recalled_ids = {q["question_id"] for q in values.get("recalled_questions", [])}
+    activation_widget = next(
+        (w for w in values.get("pending_widgets") or [] if w.get("kind") == "skill_activation"),
+        None,
+    )
+    dim_answers: dict = {}
+    for key, answer in (body.dim_widget_responses or {}).items():
+        if key == "skill_activation" and isinstance(answer, str):
+            await record_event(
+                session_id, "skill_activation",
+                {"answer": answer,
+                 "question_ids": (activation_widget or {}).get("question_ids", [])},
+                user_id=user_id,
+            )
+        elif key in recalled_ids and isinstance(answer, str) and answer in VALID_ANSWERS:
+            await record_event(
+                session_id, "probe_response",
+                {"question_id": key, "answer": answer}, user_id=user_id,
+            )
+        else:
+            dim_answers[key] = answer
+
+    await record_event(
+        session_id, "align_answer",
+        {"dim_widget_responses": dim_answers, "free_text": body.free_text},
+        user_id=user_id,
+    )
+
     resume_value = {
         "type": "widgets_response",
-        "dim_widget_responses": body.dim_widget_responses,
+        "dim_widget_responses": dim_answers,
         "free_text": body.free_text,
     }
     if request.query_params.get("stream") == "1":
@@ -339,20 +436,166 @@ async def respond_to_align(session_id: str, body: AlignRespondBody, request: Req
 @sessions_router.post("/{session_id}/confirm")
 async def confirm_alignment(session_id: str, body: ConfirmBody, request: Request):
     graph = request.app.state.graph
+    active_skill = None
+    if body.confirmed:
+        values = await _get_values(graph, session_id)
+        # confirm 门控上展示的探针:先把回答落 trace(与 respond 路径同构),再 finalize
+        if body.probe_response:
+            await _record_confirm_probe(session_id, values, body.probe_response)
+        # 探针裁决延到此处:tags 已确认,做 applicability 二次校验后才落账/激活(ADR-0017)。
+        active_skill = await _finalize_probe(session_id, values)
+
     resume_value = {
         "type": "confirm",
         "confirmed": body.confirmed,
         "rejection_text": body.rejection_text,
+        "active_skill": active_skill,
     }
     if request.query_params.get("stream") == "1":
         return await _stream_turn(session_id, lambda: _resume_state(graph, session_id, resume_value, ("confirm",)))
     return await _resume(graph, session_id, resume_value, expected_types=("confirm",))
 
 
+async def _record_confirm_probe(session_id: str, values: dict, pr: dict) -> None:
+    """Record a probe answered on the confirm gate as trace events (ADR-0017).
+
+    Mirrors the respond-path split: verification answers keyed by question_id,
+    activation by 'skill_activation'. Best-effort; never blocks the turn.
+    """
+    user_id = _session_user_id(values)
+    activation = pr.get("skill_activation")
+    if isinstance(activation, str):
+        probe_widget = next(
+            (
+                w for w in values.get("pending_widgets") or []
+                if w.get("kind") == "skill_activation"
+            ),
+            None,
+        )
+        await record_event(
+            session_id, "skill_activation",
+            {"answer": activation,
+             "question_ids": (probe_widget or {}).get("question_ids", [])},
+            user_id=user_id,
+        )
+        return
+    qid = pr.get("question_id")
+    answer = pr.get("answer")
+    recalled_ids = {q["question_id"] for q in values.get("recalled_questions", [])}
+    if qid in recalled_ids and isinstance(answer, str) and answer in VALID_ANSWERS:
+        await record_event(
+            session_id, "probe_response",
+            {"question_id": qid, "answer": answer}, user_id=user_id,
+        )
+
+
+async def _finalize_probe(session_id: str, values: dict) -> dict | None:
+    """After the user confirms brief+tags, settle the session's probe answer.
+
+    - verification answer → applicability check vs confirmed tags → record_answer
+      (updates the question's prevailing status). No skill is activated by a
+      mere verification (never silently applied).
+    - skill activation ``apply`` → enact a session skill from corroborated,
+      applicable questions (with the user's own exemplars as few-shot,
+      ADR-0018); ``forget`` → revoke the presented questions.
+
+    Returns the active WorkflowSkill dict, or None. Best-effort; never blocks.
+    """
+    user_id = _session_user_id(values)
+    if user_id == "anonymous":
+        return None
+    tags = values.get("tags", [])
+    recalled = {q["question_id"]: q for q in values.get("recalled_questions", [])}
+    trace = await load_session_trace(session_id)
+
+    verification: dict | None = None
+    activation: str | None = None
+    activation_qids: list[str] = []
+    for ev in trace:
+        if ev.get("event_type") == "probe_response":
+            verification = ev.get("payload") or {}
+        elif ev.get("event_type") == "skill_activation":
+            payload = ev.get("payload") or {}
+            activation = payload.get("answer")
+            activation_qids = payload.get("question_ids") or []
+
+    try:
+        if verification:
+            qid = verification.get("question_id")
+            q = recalled.get(qid)
+            if q and _question_applies(q, tags):
+                await record_answer(session_id, qid, verification.get("answer"))
+            else:
+                await record_event(
+                    session_id, "skill_outcome",
+                    {"stage": "confirm", "question_id": qid,
+                     "result": "inapplicable_after_confirm"},
+                    user_id=user_id,
+                )
+        if activation == ACT_FORGET:
+            # 只撤销激活探针实际呈现的问题;缺 id 时兜底为召回中的已确证问题
+            targets = activation_qids or [
+                qid for qid, q in recalled.items() if q.get("status") == "corroborated"
+            ]
+            for qid in targets:
+                await set_user_flag(user_id, qid, "revoke")
+        elif activation == ACT_APPLY:
+            corroborated = await get_corroborated_applicable(user_id, tags)
+            # ADR-0018: 呈现层 examples 取自该用户自己的范例库(预取,enact 保持纯函数)
+            try:
+                from app.recall import fetch_user_exemplars
+
+                exemplars = await fetch_user_exemplars(user_id, tags)
+            except Exception:
+                logger.debug("Exemplar fetch failed, enacting without examples", exc_info=True)
+                exemplars = []
+            skill = enact(corroborated, exemplar_records=exemplars)
+            if skill is not None:
+                await record_event(
+                    session_id, "skill_outcome",
+                    {"stage": "activate", "result": "consumed",
+                     "source_question_ids": skill.get("source_question_ids", [])},
+                    user_id=user_id,
+                )
+            return skill
+    except Exception:
+        logger.warning("Probe finalization failed for %s (non-critical)", session_id,
+                       exc_info=True)
+    return None
+
+
+def _question_applies(question: dict, tags: list[str]) -> bool:
+    """A question applies if global, or its intent-leaf/mechanism scope overlaps
+    the confirmed tags."""
+    if question.get("scope_type") == "global":
+        return True
+    return question.get("scope_id") in set(tags or [])
+
+
 @sessions_router.post("/{session_id}/select")
 async def select_scheme(session_id: str, body: SelectBody, request: Request):
-    return await _resume(
-        request.app.state.graph,
+    graph = request.app.state.graph
+    values = await _get_values(graph, session_id)
+    user_id = _session_user_id(values)
+
+    # 比较证据(ADR-0017):三选一 = 机制层的偏好表态,每会话必产一条
+    candidates = values.get("candidates", [])
+    rejected = [c.get("scheme_id") for c in candidates if c.get("scheme_id") != body.scheme_id]
+    await record_event(
+        session_id, "candidate_select",
+        {
+            "selected": body.scheme_id,
+            "rejected": rejected,
+            "action": body.action,
+            "directions": values.get("directions", []),
+            "tags": values.get("tags", []),
+            "brief": values.get("brief", ""),
+        },
+        user_id=user_id,
+    )
+
+    result = await _resume(
+        graph,
         session_id,
         {
             "type": "candidates_response",
@@ -362,11 +605,43 @@ async def select_scheme(session_id: str, body: SelectBody, request: Request):
         expected_types=("candidates",),
     )
 
+    # 采纳即会话结束:记 adopt 证据、skill 采纳结果,并异步触发反思(非阻塞)
+    if body.action == "writeback":
+        await record_event(
+            session_id, "adopt",
+            {"scheme_id": body.scheme_id, "tags": values.get("tags", []),
+             "brief": values.get("brief", "")},
+            user_id=user_id,
+        )
+        active_skill = values.get("active_skill")
+        if active_skill:
+            selected = next(
+                (c for c in candidates if c.get("scheme_id") == body.scheme_id), None
+            )
+            outcomes = evaluate_skill_adoption(active_skill, (selected or {}).get("shots", []))
+            await record_event(
+                session_id, "skill_outcome",
+                {"stage": "adopt", **outcomes,
+                 "source_question_ids": active_skill.get("source_question_ids", [])},
+                user_id=user_id,
+            )
+        if user_id != "anonymous":
+            _spawn_background(reflect_session(session_id))
+
+    return result
+
 
 @sessions_router.post("/{session_id}/edit")
 async def edit_shot(session_id: str, body: EditBody, request: Request):
+    graph = request.app.state.graph
+    values = await _get_values(graph, session_id)
+    await _record_patch_events(
+        session_id, values, [op.model_dump() for op in body.patch],
+        free_text=body.free_text, scheme_id=values.get("selected_scheme_id"),
+    )
+
     return await _resume(
-        request.app.state.graph,
+        graph,
         session_id,
         {
             "type": "edit_patch",
@@ -375,6 +650,61 @@ async def edit_shot(session_id: str, body: EditBody, request: Request):
         },
         expected_types=("edit_request",),
     )
+
+
+async def _record_patch_events(
+    session_id: str,
+    values: dict,
+    ops_in: list[dict],
+    free_text: str | None = None,
+    scheme_id: str | None = None,
+) -> None:
+    """参数证据(ADR-0017):补齐每个编辑的 from 值,记 edit_patch;若激活了 skill,
+    把改走偏好字段的编辑记为 user_overridden(下次反思的发现线索)。
+
+    同时被 /edit 与「渲染/动画随带 patch」路径复用——后者绕过 graph 的 edit
+    interrupt,若不在此补录,参数证据会静默丢失。Best-effort,绝不阻塞。
+    """
+    if not ops_in:
+        return
+    user_id = _session_user_id(values)
+    target_id = scheme_id or values.get("selected_scheme_id")
+    scheme = next(
+        (c for c in values.get("candidates", []) if c.get("scheme_id") == target_id),
+        None,
+    )
+    shots_by_order = {s.get("order"): s for s in (scheme or {}).get("shots", [])}
+    ops = []
+    for op in ops_in:
+        shot = shots_by_order.get(op.get("shot_order"), {})
+        ops.append(
+            {
+                "shot_order": op.get("shot_order"),
+                "field": op.get("field"),
+                "from": shot.get(op.get("field")),
+                "to": op.get("value"),
+            }
+        )
+    await record_event(
+        session_id, "edit_patch",
+        {"scheme_id": target_id, "ops": ops, "free_text": free_text},
+        user_id=user_id,
+    )
+
+    active_skill = values.get("active_skill")
+    if active_skill:
+        prefs = preferred_values(active_skill)
+        overridden = [
+            {"field": op["field"], "preferred": prefs[op["field"]], "to": op["to"]}
+            for op in ops
+            if op["field"] in prefs and str(op["to"]) != prefs[op["field"]]
+        ]
+        if overridden:
+            await record_event(
+                session_id, "skill_outcome",
+                {"stage": "edit", "result": "user_overridden", "fields": overridden},
+                user_id=user_id,
+            )
 
 
 @sessions_router.post("/{session_id}/render")
@@ -411,10 +741,20 @@ async def render_keyframes(session_id: str, body: RenderBody, request: Request):
 
     # 前端本地编辑(含 frame_edit_hint)随渲染一并应用 —— 不依赖会话是否停在 edit interrupt,
     # 这样载入历史(会话已不在 candidates 等待态)也能渲染编辑后的方案。
+    # ADR-0017: 该路径绕过 graph 的 edit interrupt,须在此补录参数证据,否则外环失明。
     if body.patch:
+        await _record_patch_events(
+            session_id, values, [op.model_dump() for op in body.patch],
+            scheme_id=body.scheme_id,
+        )
         from app.graph.nodes.edit import _apply_patch
         scheme, _rejected = _apply_patch(scheme, [op.model_dump() for op in body.patch])
 
+    await record_event(
+        session_id, "render_request",
+        {"scheme_id": body.scheme_id, "shot_order": body.shot_order},
+        user_id=_session_user_id(values),
+    )
     updated = await render_scheme(session_id, scheme, base_path, only_order=body.shot_order)
     # merge all on-disk frames (this render + any previously rendered shots) so the response is complete
     updated = hydrate_frames(session_id, [updated])[0]
@@ -460,9 +800,20 @@ async def animate_shots(session_id: str, body: RenderBody, request: Request):
 
     # 前端本地编辑随 animate 一并应用,使视频运镜/镜头语言 prompt 也反映改动
     # (state.candidates 没被 render 写回,不 apply 的话视频会用旧参数)。
+    # ADR-0017: 同 /render,绕过 edit interrupt 的编辑在此补录参数证据。
     if body.patch:
+        await _record_patch_events(
+            session_id, values, [op.model_dump() for op in body.patch],
+            scheme_id=body.scheme_id,
+        )
         from app.graph.nodes.edit import _apply_patch
         scheme, _rejected = _apply_patch(scheme, [op.model_dump() for op in body.patch])
+
+    await record_event(
+        session_id, "render_request",
+        {"scheme_id": body.scheme_id, "mode": "animate"},
+        user_id=_session_user_id(values),
+    )
 
     # 关键帧是图生视频的首帧前置;按磁盘存在性回填,缺帧则拒绝
     scheme = hydrate_frames(session_id, [scheme])[0]
@@ -515,6 +866,19 @@ async def make_backplate(session_id: str, request: Request):
     fname = f"{session_id}_backplate.png"
     (UPLOADS_DIR / fname).write_bytes(img)
     return {"session_id": session_id, "url": f"{UPLOADS_URL_PREFIX}/{fname}"}
+
+
+@sessions_router.post("/{session_id}/trace")
+async def push_trace(session_id: str, body: TraceBody, request: Request):
+    """Batch-ingest fine-grained frontend events (ADR-0017).
+
+    The production frontend streams interaction detail (shot selected, slider
+    dragged, preview compared, ...) here. Capture is best-effort and never
+    touches the agent graph.
+    """
+    values = await _get_values(request.app.state.graph, session_id)
+    accepted = await record_batch(session_id, body.events, user_id=_session_user_id(values))
+    return {"session_id": session_id, "accepted": accepted}
 
 
 @sessions_router.get("/{session_id}")

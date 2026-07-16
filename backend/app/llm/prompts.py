@@ -218,6 +218,7 @@ class PromptBuilder:
         knowledge: str,
         critic_feedback: str | None = None,
         image_brief: str | None = None,
+        active_skill: dict | None = None,
     ) -> tuple[str, str]:
         """Generate one direction's shot script (plan→detail, 纯推理).
 
@@ -268,11 +269,14 @@ class PromptBuilder:
             "保持主体与空间布局可辨认;风格改造幅度服从意图,需要剧变就大胆剧变。"
         )
         system = system + _LANG_RULE
+        from app.evolution import skill_prompt_section
+
         user = (
             f"## Intent State(含 brief 与 tags)\n{intent_state}\n\n"
             f"## 本方向(机制路径)\n{direction}\n\n"
             f"## 相关知识卡\n{knowledge}"
             f"{PromptBuilder._image_section(image_brief)}"
+            f"{skill_prompt_section(active_skill)}"
         )
         if critic_feedback:
             user += (
@@ -287,6 +291,7 @@ class PromptBuilder:
         shot_script: dict[str, Any],
         constraints: str,
         knowledge: str,
+        skill_checks: list[str] | None = None,
     ) -> tuple[str, str]:
         """Critic review prompt.
 
@@ -308,6 +313,9 @@ class PromptBuilder:
             "与 tags 声称的一侧不符 → 失败(如 tags 是悬念 8.3,脚本只做了情绪紧绷 1.2)。\n\n"
             "4. 双极轴自洽:同一方案的镜头不得同时服务一条轴的两极,"
             "除非 rationale 明确说明是刻意对比。\n\n"
+            "5. 偏好软检查(仅当下方提供,ADR-0017):逐条对照脚本是否体现;"
+            "**只能写进 suggestions 提示,绝不能作为 passed=false 的依据**;"
+            "与上述任何硬规则(意图忠实/本体/serves/耦合)冲突时忽略该条软检查。\n\n"
             "输出 JSON:\n"
             "{\n"
             '  "passed": true,\n'
@@ -323,6 +331,65 @@ class PromptBuilder:
             f"## Shot Script\n{shot_script}\n\n"
             f"## 约束(易混淆 / 双极轴)\n{constraints}\n\n"
             f"## 相关知识卡(机制对照)\n{knowledge}"
+        )
+        if skill_checks:
+            checks = "\n".join(f"- {c}" for c in skill_checks)
+            user += f"\n\n## 偏好软检查(用户已确证偏好,仅提建议,不作为失败依据)\n{checks}"
+        return system, user
+
+    @staticmethod
+    def discover_questions(
+        evidence_digest: dict[str, Any],
+        existing_questions: list[dict[str, Any]],
+    ) -> tuple[str, str]:
+        """Discovery prompt (ADR-0017): propose preference *questions* from a
+        session's interaction cues.
+
+        Behaviour only proposes; it never settles. Bilingual rule (CineScape):
+        user-facing text (decision / label / mechanism) in English, ten-parameter
+        detail values stay in the Chinese controlled vocabulary.
+        """
+        system = (
+            "你是偏好问题发现者。从一次创作会话的交互线索里,提出关于【这个用户】的"
+            "**偏好问题**(不是结论)。核心信条:行为只能*提出问题*,不能*裁决*——"
+            "完整候选常在多个维度上不同、且可能已被上次个性化影响,无法干净归因到单一决策。\n\n"
+            "一道偏好问题 q=(c,d,a,b):\n"
+            "- c 上下文(scope):intent_leaf(某二级意图 code,如 6.2)/ mechanism(机制族名)/ global。\n"
+            "- d 决策轴:一个具体的电影化取舍(如 how to handle threat visibility)。\n"
+            "- a,b 两个**设计空间内可执行**的备选,各带 label 与 detail(十参数字段→取值)。\n"
+            "  可选 detail 字段:shot_size/composition/angle/movement/focal_length/"
+            "depth_of_field/lighting/color_tone/rhythm/duration;也可带 intent_codes、"
+            "plan{shot_count,sequence_pattern}。\n"
+            "- **每个备选尽量带 mechanism**:一句话说明该备选服务什么心理/知觉机制。"
+            "它将成为该偏好被确证后 workflow skill 的推理链片段,写给未来的生成器看。\n\n"
+            "输出语言(严格):decision、label、mechanism 面向用户展示,一律**英文**;"
+            "detail 的字段值保持**中文受控词表**(与镜头脚本一致)。\n\n"
+            "纪律:\n"
+            "- 只在交互线索**真的暗示了一个二选一取舍**时提问;情境性修补(这个画面"
+            "主体太小才拉远)不要提成偏好。\n"
+            "- a,b 必须是同一决策轴上的对立面,且都在设计空间内可执行。\n"
+            "- 命中已有问题就给 match_question_id(其状态由探针裁决,你不要改);已被用户 revoked 的"
+            "问题不得重新提出。\n"
+            "- 不打任何分数/置信度,不断言用户偏好哪一边(那由探针回答决定)。\n\n"
+            "输出 JSON:\n"
+            "{\n"
+            '  "questions": [\n'
+            "    {\n"
+            '      "match_question_id": null,\n'
+            '      "scope_type": "intent_leaf|mechanism|global",\n'
+            '      "scope_id": "6.2 或 机制族名 或 null",\n'
+            '      "decision": "one-sentence decision axis (English)",\n'
+            '      "alt_a": {"label": "English label", "detail": {"movement": "固定"},'
+            ' "mechanism": "optional English", "intent_codes": ["optional"]},\n'
+            '      "alt_b": {"label": "English label", "detail": {"movement": "缓慢推进"}}\n'
+            "    }\n"
+            "  ]\n"
+            "}"
+        )
+        user = (
+            f"## 本次会话交互线索(已做确定性预处理)\n{evidence_digest}\n\n"
+            f"## 该用户已有的偏好问题(命中则给 match_question_id;revoked 的不得重提)\n"
+            f"{existing_questions}"
         )
         return system, user
 

@@ -68,6 +68,7 @@ def _generate_send(state: SessionState, direction: dict) -> Send:
             directions=state.directions,
             current_direction=direction,
             critic_feedback=state.critic_feedback,
+            active_skill=state.active_skill,  # ADR-0017: 会话级 skill 随分支下传
         ),
     )
 

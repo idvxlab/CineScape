@@ -37,6 +37,7 @@ async def writeback_node(state: SessionState) -> dict:
                 intent_brief=state.brief,
                 embedding=embedding,
                 shot_script=selected,
+                user_id=state.user_id,  # ADR-0015: 采纳者归属(审计/删除)
             )
             logger.info("Flywheel writeback done (embedding=%s)", embedding is not None)
         except Exception:

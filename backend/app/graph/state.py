@@ -54,8 +54,14 @@ class SessionState(BaseModel):
 
     # -- user input --
     raw_intent: str = ""
+    user_id: str = "anonymous"  # ADR-0017: 个人偏好层的归属;匿名会话不做个性化
     reference_image: str | None = None  # 用户上传的基底图 URL(/api/uploads/..)
     image_brief: str | None = None  # 基底图的视觉描述(VLM 产出,可为空)
+
+    # -- evolutionary memory (ADR-0017: 偏好问题探针/会话级 skill,匿名或库空时零影响) --
+    recalled_questions: list[dict[str, Any]] = Field(default_factory=list)  # 召回的适用问题
+    probed: bool = False  # 本会话是否已抛过探针(每会话至多一条,防打扰)
+    active_skill: dict[str, Any] | None = None  # 用户激活的会话级 workflow skill(视图)
 
     # -- alignment phase --
     dimensions: Annotated[dict[str, Any], merge_dimensions] = Field(default_factory=dict)

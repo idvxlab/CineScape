@@ -18,10 +18,21 @@ logger = logging.getLogger(__name__)
 
 
 async def init_database() -> None:
-    """Run the init-db.sql script to ensure all tables exist."""
+    """Run the schema scripts to ensure all tables exist.
+
+    ``init-evolution.sql`` (ADR-0017 outer loop: trace / preference questions /
+    profile) is pgvector-free and always runs, so the evolutionary memory works
+    even where ``init-db.sql`` degrades below.
+    """
     pool = get_pool()
-    sql_path = Path(__file__).parent.parent.parent.parent / "scripts" / "init-db.sql"
-    sql = sql_path.read_text(encoding="utf-8")
+    scripts_dir = Path(__file__).parent.parent.parent.parent / "scripts"
+
+    evolution_sql = scripts_dir / "init-evolution.sql"
+    if evolution_sql.exists():
+        async with pool.connection() as conn:
+            await conn.execute(evolution_sql.read_text(encoding="utf-8"))
+
+    sql = (scripts_dir / "init-db.sql").read_text(encoding="utf-8")
     try:
         async with pool.connection() as conn:
             await conn.execute(sql)

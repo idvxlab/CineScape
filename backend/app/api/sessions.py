@@ -667,6 +667,8 @@ async def _record_patch_events(
     """
     if not ops_in:
         return
+    from app.ontology import TEN_PARAMS
+
     user_id = _session_user_id(values)
     target_id = scheme_id or values.get("selected_scheme_id")
     scheme = next(
@@ -674,17 +676,29 @@ async def _record_patch_events(
         None,
     )
     shots_by_order = {s.get("order"): s for s in (scheme or {}).get("shots", [])}
+    ten = set(TEN_PARAMS)
     ops = []
     for op in ops_in:
+        field = op.get("field")
+        # 证据降噪:只留十参数字段(frame_edit_hint 等注解不是偏好证据),
+        # 且跳过 no-op(前端渲染路径每次全量发 patch,未改字段无证据价值)。
+        if field not in ten:
+            continue
         shot = shots_by_order.get(op.get("shot_order"), {})
+        before = shot.get(field)
+        after = op.get("value")
+        if before is not None and str(before) == str(after):
+            continue
         ops.append(
             {
                 "shot_order": op.get("shot_order"),
-                "field": op.get("field"),
-                "from": shot.get(op.get("field")),
-                "to": op.get("value"),
+                "field": field,
+                "from": before,
+                "to": after,
             }
         )
+    if not ops:
+        return
     await record_event(
         session_id, "edit_patch",
         {"scheme_id": target_id, "ops": ops, "free_text": free_text},

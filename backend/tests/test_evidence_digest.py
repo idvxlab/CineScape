@@ -88,3 +88,38 @@ def test_no_perceptual_signal_without_render():
     assert d["perceptual_verdicts"] == []
     assert d["has_edits"] is True
     assert d["has_renders"] is False
+
+
+def test_ui_flow_yields_all_three_channels_with_dedup():
+    """采纳按钮打通后的真实 UI 事件流:比较/参数/知觉三通道齐全,
+    且采纳流程两次经过 /select 的比较证据只算一次。"""
+    dirs = [
+        {"id": "A", "name": "Omniscient", "mechanism": "info asymmetry"},
+        {"id": "B", "name": "Subjective", "mechanism": "immersion"},
+    ]
+    trace = [
+        _ev("s1", "session_start", {}),
+        # 用户编辑(渲染路径,已被白名单+no-op 过滤为真实改动)
+        _ev("s1", "edit_patch", {"ops": [{"shot_order": 1, "field": "movement",
+                                          "from": "缓慢推进", "to": "固定"}]}),
+        _ev("s1", "render_request", {"scheme_id": "A"}),
+        # 采纳:select(edit) → select(writeback),两条 candidate_select 同一选择
+        _ev("s1", "candidate_select", {"selected": "A", "rejected": ["B"],
+                                       "directions": dirs, "action": "edit",
+                                       "tags": ["8.3"], "brief": "b"}),
+        _ev("s1", "candidate_select", {"selected": "A", "rejected": ["B"],
+                                       "directions": dirs, "action": "writeback",
+                                       "tags": ["8.3"], "brief": "b"}),
+        _ev("s1", "adopt", {"scheme_id": "A"}),
+    ]
+    d = build_evidence_digest(trace)
+    # ① 比较证据:去重后一条
+    assert len(d["comparisons"]) == 1
+    assert d["comparisons"][0]["selected"]["id"] == "A"
+    # ② 参数证据
+    assert d["net_edits"] == [{"shot_order": 1, "field": "movement",
+                               "from": "缓慢推进", "to": "固定"}]
+    # ③ 知觉证据:改后渲染、之后未再改 → kept
+    assert d["perceptual_verdicts"] == [
+        {"shot_order": 1, "field": "movement", "verdict": "kept", "to": "固定"}
+    ]

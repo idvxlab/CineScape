@@ -61,12 +61,16 @@ def build_evidence_digest(trace: list[dict[str, Any]]) -> dict[str, Any]:
             dirs = {d.get("id"): d for d in p.get("directions") or []}
             selected_id = p.get("selected")
             rejected_ids = p.get("rejected") or [k for k in dirs if k != selected_id]
-            comparisons.append(
-                {
-                    "selected": dirs.get(selected_id, {"id": selected_id}),
-                    "rejected": [dirs.get(r, {"id": r}) for r in rejected_ids],
-                }
-            )
+            # 去重:采纳流程会两次经过 /select(edit → writeback),同一选择只算一次表态
+            if not any(
+                c.get("selected", {}).get("id") == selected_id for c in comparisons
+            ):
+                comparisons.append(
+                    {
+                        "selected": dirs.get(selected_id, {"id": selected_id}),
+                        "rejected": [dirs.get(r, {"id": r}) for r in rejected_ids],
+                    }
+                )
             tags = p.get("tags") or tags
             brief = p.get("brief") or brief
 

@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
 import type { Project, Plan, Shot, SevenDims, Anchor } from '../api/types'
 import { mockProject, createProjectFromImage } from '../api/mock'
-import { type ActiveSkill, createSession, confirmIntent, renderScheme, animateScheme, makeBackplate, assetUrl, type IntentTurn, type ShotScript, type OnReasoning } from '../api/backend'
+import { selectScheme, editScheme, type ActiveSkill, createSession, confirmIntent, renderScheme, animateScheme, makeBackplate, assetUrl, type IntentTurn, type ShotScript, type OnReasoning } from '../api/backend'
 import { schemesToPlans, dimsToPatch, shotReading } from '../lib/schemeMap'
 
 interface Ctx {
@@ -27,6 +27,9 @@ interface Ctx {
   generating: boolean // scheme inference in progress
   acceptAndGenerate(onReasoning?: OnReasoning, probeResponse?: Record<string, string> | null): Promise<void> // confirm intent → backend reasons out the candidate schemes
   activeSkill: ActiveSkill | null // workflow skill the user applied this session (ADR-0017), for the badge
+  adoptScheme(index?: number): Promise<void> // adopt a scheme (default: active); local edits go through the graph edit loop, then writeback
+  adoptedSchemeId: string | null
+  adopting: boolean
   renderingScheme: boolean
   renderingShot: number | null // index of the single shot being re-rendered (null = whole scheme)
   animatingScheme: boolean
@@ -48,6 +51,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [backplate, setBackplate] = useState<string | null>(null)
   const [makingBackplate, setMakingBackplate] = useState(false)
   const [activeSkill, setActiveSkill] = useState<ActiveSkill | null>(null)
+  const [adoptedSchemeId, setAdoptedSchemeId] = useState<string | null>(null)
+  const [adopting, setAdopting] = useState(false)
 
   const SEED_KEY = 'icd-demo-seed'
 
@@ -155,6 +160,31 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   // push the active scheme's (edited) dims to the backend, then render keyframes.
   // shotIndex set → patch + re-render just that one shot; otherwise the whole scheme.
+  // Adopt the active scheme (ADR-0017 closing step): local editor changes are first
+  // applied through the graph edit loop (select 'edit' → edit patch → back to candidates)
+  // so the exemplar library stores the *edited* script, then 'writeback' adopts it —
+  // recording comparative evidence, the adoption event, and triggering session-end
+  // reflection (discovery of new preference questions) on the backend.
+  const adoptScheme = async (index?: number) => {
+    const idx = index ?? activeSchemeIndex()
+    const scheme = schemes[idx]
+    if (!sessionId || !scheme || adoptedSchemeId || adopting) return
+    setAdopting(true)
+    try {
+      // local editor changes only exist for the active plan — apply them via the
+      // graph edit loop first so the adopted (stored) script is the edited one
+      if (dirty && idx === activeSchemeIndex()) {
+        const patch = activePlan.shots.flatMap((sh, i) => dimsToPatch(sh.dims, scheme.shots[i]?.order ?? i + 1))
+        await selectScheme(sessionId, scheme.scheme_id, 'edit')
+        await editScheme(sessionId, patch)
+      }
+      await selectScheme(sessionId, scheme.scheme_id, 'writeback')
+      setAdoptedSchemeId(scheme.scheme_id)
+    } finally {
+      setAdopting(false)
+    }
+  }
+
   const generateKeyframes = async (shotIndex?: number) => {
     const idx = activeSchemeIndex()
     const scheme = schemes[idx]
@@ -246,7 +276,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     setDirty(false)
   }
 
-  const value: Ctx = { project, activePlan, activeShot, setActivePlan, setActiveShot, editShot, dirty, saveProject, ready, analyzing, source, setSource, backplate, makingBackplate, parseIntent, loadDemo, saveDemo, sessionId, schemes, generating, acceptAndGenerate, renderingScheme, renderingShot, animatingScheme, sceneVideo, generateKeyframes, generateVideo, activeSkill }
+  const value: Ctx = { project, activePlan, activeShot, setActivePlan, setActiveShot, editShot, dirty, saveProject, ready, analyzing, source, setSource, backplate, makingBackplate, parseIntent, loadDemo, saveDemo, sessionId, schemes, generating, acceptAndGenerate, renderingScheme, renderingShot, animatingScheme, sceneVideo, generateKeyframes, generateVideo, activeSkill, adoptScheme, adoptedSchemeId, adopting }
   return <ProjectCtx.Provider value={value}>{children}</ProjectCtx.Provider>
 }
 

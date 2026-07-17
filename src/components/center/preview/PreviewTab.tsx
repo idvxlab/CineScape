@@ -10,7 +10,7 @@ const intentLabel = (code: string) => (CODEBOOK[code] ? `${code} ${CODEBOOK[code
 const GEN_STEPS = ['Deriving strategy directions…', 'Reasoning the A/B/C shot scripts…', 'Validating cinematic grammar…']
 
 export function PreviewTab() {
-  const { schemes, generating, project, setActivePlan, activeSkill } = useProject()
+  const { schemes, generating, project, setActivePlan, activeSkill, adoptScheme, adoptedSchemeId, adopting } = useProject()
   const setTab = useEditor((s) => s.setTab)
 
   if (generating) return <GeneratingProgress />
@@ -39,6 +39,9 @@ export function PreviewTab() {
             variant={variant}
             active={project.activePlanId === planId}
             onEdit={() => { setActivePlan(planId); setTab('edit') }}
+            onAdopt={() => adoptScheme(i)}
+            adopted={adoptedSchemeId === s.scheme_id}
+            adoptDisabled={adopting || (adoptedSchemeId != null && adoptedSchemeId !== s.scheme_id)}
           />
         )
       })}
@@ -80,10 +83,13 @@ function GeneratingProgress() {
   )
 }
 
-function SchemeCard({ scheme, variant, active, onEdit }: { scheme: ShotScript; variant: string; active: boolean; onEdit: () => void }) {
+function SchemeCard({ scheme, variant, active, onEdit, onAdopt, adopted, adoptDisabled }: {
+  scheme: ShotScript; variant: string; active: boolean; onEdit: () => void
+  onAdopt: () => void; adopted: boolean; adoptDisabled: boolean
+}) {
   const [open, setOpen] = useState(true)
   return (
-    <div className={`overflow-hidden rounded-xl border ${active ? 'border-brand ring-1 ring-brand/40' : 'border-[#e8ebee]'}`}>
+    <div className={`overflow-hidden rounded-xl border ${adopted ? 'border-emerald-400 ring-1 ring-emerald-300/50' : active ? 'border-brand ring-1 ring-brand/40' : 'border-[#e8ebee]'}`}>
       <div className="flex w-full items-start gap-3 px-3 py-2.5">
         <span className="grid h-7 w-7 flex-none place-items-center rounded-lg bg-brand text-sm font-bold text-white">{variant}</span>
         <button className="min-w-0 flex-1 text-left" onClick={() => setOpen(!open)}>
@@ -92,6 +98,14 @@ function SchemeCard({ scheme, variant, active, onEdit }: { scheme: ShotScript; v
         </button>
         <button onClick={onEdit} className={`flex-none rounded-lg px-2 py-1 text-[11px] font-medium transition ${active ? 'bg-brand text-white' : 'bg-brand-soft text-brand hover:bg-brand/20'}`}>
           {active ? '✓ Editing' : 'Edit ▸'}
+        </button>
+        <button
+          onClick={onAdopt}
+          disabled={adoptDisabled || adopted}
+          title="Adopt this scheme — saves it (with your edits) as the final plan and lets the assistant learn from this session"
+          className={`flex-none rounded-lg px-2 py-1 text-[11px] font-medium transition ${adopted ? 'bg-emerald-500 text-white' : 'border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-40'}`}
+        >
+          {adopted ? '✓ Adopted' : 'Adopt'}
         </button>
         <button className="flex-none text-gray-400" onClick={() => setOpen(!open)}>{open ? '▴' : '▾'}</button>
       </div>

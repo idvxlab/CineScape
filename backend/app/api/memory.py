@@ -35,6 +35,21 @@ class MemoryActionBody(BaseModel):
     action: str  # emphasize | revoke | delete
 
 
+def _prevailing_detail(question: dict) -> dict:
+    """The design-space detail of the prevailing alternative, if settled.
+
+    Exposed so an evaluation can compare corroborated beliefs against a known
+    ground-truth taste profile (ledger precision/recall); the panel itself
+    renders the label, not this.
+    """
+    p = prevailing_answer(question.get("answers") or [])
+    if p == ANSWER_A:
+        return (question.get("alt_a") or {}).get("detail") or {}
+    if p == ANSWER_B:
+        return (question.get("alt_b") or {}).get("detail") or {}
+    return {}
+
+
 def _prevailing_label(question: dict) -> str:
     """Plain-language prevailing conclusion for the panel."""
     p = prevailing_answer(question.get("answers") or [])
@@ -67,6 +82,7 @@ async def list_memory(user_id: str):
                 "alt_b": (q.get("alt_b") or {}).get("label", "B"),
                 "status": q["status"],
                 "prevailing": _prevailing_label(q),
+                "prevailing_detail": _prevailing_detail(q),
                 "answer_count": len(q.get("answers") or []),
                 "user_flag": q["user_flag"],
                 "updated_at": q["updated_at"],

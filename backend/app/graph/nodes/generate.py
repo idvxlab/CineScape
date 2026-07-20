@@ -46,6 +46,20 @@ async def generate_node(state: SessionState) -> dict:
 
     feedback = state.critic_feedback.get(direction_id)
 
+    # C1 基线臂:无验证记忆——过往采纳稿蒸馏成风格便签直接注入(不探针不确证)。
+    # 只在 memory_mode='naive' 时走这条路;生产会话恒为 'full'。
+    style_note = None
+    if state.memory_mode == "naive" and state.user_id != "anonymous":
+        try:
+            from app.evolution import naive_style_note
+            from app.recall import fetch_user_exemplars
+
+            style_note = naive_style_note(
+                await fetch_user_exemplars(state.user_id, state.tags)
+            )
+        except Exception:
+            logger.debug("Naive-memory recall unavailable, generating cold", exc_info=True)
+
     system, user = builder.generate_direction(
         intent_state,
         direction,
@@ -53,6 +67,7 @@ async def generate_node(state: SessionState) -> dict:
         critic_feedback=feedback,
         image_brief=state.image_brief,
         active_skill=state.active_skill,
+        style_note=style_note,
     )
 
     try:

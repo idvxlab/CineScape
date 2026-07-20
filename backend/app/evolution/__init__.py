@@ -34,6 +34,7 @@ from app.evolution.questions import (
 from app.evolution.reflect import build_evidence_digest, reflect_session
 from app.evolution.skills import (
     enact,
+    naive_style_note,
     evaluate_skill_adoption,
     preferred_values,
     reorder_directions,
@@ -57,6 +58,7 @@ __all__ = [
     "build_verification_probe",
     "build_activation_probe",
     "enact",
+    "naive_style_note",
     "reorder_directions",
     "skill_prompt_section",
     "preferred_values",

@@ -99,7 +99,8 @@ async def align_node(state: SessionState) -> dict:
     # 因此 ``probed`` 不在此置位,而在 ask_user 门控**实际展示**探针时置位——
     # 被跳过的探针不消耗每会话预算。
     recalled: list = list(state.recalled_questions or [])
-    if user_turns >= 1 and not state.probed and state.user_id != "anonymous":
+    if (user_turns >= 1 and not state.probed and state.user_id != "anonymous"
+            and state.memory_mode == "full"):
         try:
             recalled = await recall_questions(state.user_id, _provisional_tags(state.dimensions))
         except Exception:

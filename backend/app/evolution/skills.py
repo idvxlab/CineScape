@@ -389,3 +389,35 @@ def skill_prompt_section(skill: dict | None) -> str:
         "与 brief / 本体 / serves / 参数耦合冲突时忽略对应字段;受影响镜头仍须声明 serves。"
     )
     return section
+
+
+# ---------------------------------------------------------------------------
+# Baseline arm: unverified memory (Evaluation §Design, condition C1)
+# ---------------------------------------------------------------------------
+
+
+def naive_style_note(exemplar_records: list[dict[str, Any]], limit: int = 3) -> str | None:
+    """Summarize past adopted scripts into a free-text style note.
+
+    This is the *baseline* memory design our mechanism is compared against:
+    it recalls what it saw, with no probing, no corroboration, no conflict
+    resolution, and no revocation. It exists so the evaluation can separate
+    "verification helps" from "any memory helps" — production sessions run
+    ``memory_mode='full'`` and never reach this path.
+    """
+    lines: list[str] = []
+    for rec in (exemplar_records or [])[:limit]:
+        shots = (rec.get("shot_script") or {}).get("shots") or []
+        for shot in shots[:2]:
+            params = " · ".join(
+                f"{f}={shot[f]}" for f in TEN_PARAMS if shot.get(f) is not None
+            )
+            if params:
+                lines.append(f"- {params}")
+    if not lines:
+        return None
+    return (
+        "\n\n## 个人风格便签(来自你过往采纳的方案,未经验证)\n"
+        + "\n".join(lines[:6])
+        + "\n可作风格参考;与当前意图冲突时以当前意图为准。"
+    )

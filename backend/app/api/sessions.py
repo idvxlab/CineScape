@@ -76,6 +76,7 @@ def _spawn_background(coro) -> None:
 class CreateBody(BaseModel):
     raw_intent: str
     user_id: str = "anonymous"
+    memory_mode: str = "full"  # full | naive | off — experimental arm (Evaluation §Design)
 
 
 class TraceBody(BaseModel):
@@ -326,10 +327,12 @@ async def create_session(request: Request):
     image: UploadFile | None = None
 
     user_id = "anonymous"
+    memory_mode = "full"
     if content_type.startswith("multipart/form-data"):
         form = await request.form()
         raw_intent = str(form.get("raw_intent") or "").strip()
         user_id = str(form.get("user_id") or "anonymous").strip() or "anonymous"
+        memory_mode = str(form.get("memory_mode") or "full").strip() or "full"
         # form() 产出 starlette UploadFile(非 fastapi 子类),按基类判断
         candidate = form.get("image")
         if isinstance(candidate, UploadFile) and candidate.filename:
@@ -341,6 +344,7 @@ async def create_session(request: Request):
             raise HTTPException(status_code=422, detail="raw_intent is required")
         raw_intent = body.raw_intent.strip()
         user_id = body.user_id or "anonymous"
+        memory_mode = body.memory_mode or "full"
 
     if not raw_intent:
         raise HTTPException(status_code=422, detail="raw_intent is required")
@@ -372,6 +376,7 @@ async def create_session(request: Request):
         initial_state = SessionState(
             raw_intent=raw_intent,
             user_id=user_id,
+            memory_mode=memory_mode if memory_mode in ("full", "naive", "off") else "full",
             reference_image=reference_image,
             image_brief=image_brief,
         ).model_dump()
@@ -502,7 +507,7 @@ async def _finalize_probe(session_id: str, values: dict) -> dict | None:
     Returns the active WorkflowSkill dict, or None. Best-effort; never blocks.
     """
     user_id = _session_user_id(values)
-    if user_id == "anonymous":
+    if user_id == "anonymous" or values.get("memory_mode", "full") != "full":
         return None
     tags = values.get("tags", [])
     recalled = {q["question_id"]: q for q in values.get("recalled_questions", [])}
@@ -625,7 +630,7 @@ async def select_scheme(session_id: str, body: SelectBody, request: Request):
                  "source_question_ids": active_skill.get("source_question_ids", [])},
                 user_id=user_id,
             )
-        if user_id != "anonymous":
+        if user_id != "anonymous" and values.get("memory_mode", "full") == "full":
             _spawn_background(reflect_session(session_id))
 
     return result

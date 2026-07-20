@@ -66,7 +66,7 @@ async def confirm_gate_node(state: SessionState) -> dict:
             if w.get("kind") in ("preference_probe", "skill_activation")
         ),
         None,
-    ) if not state.probed else None
+    ) if (not state.probed and state.memory_mode == "full") else None
     decision = interrupt(
         {
             "type": "confirm",

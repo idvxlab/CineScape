@@ -219,6 +219,7 @@ class PromptBuilder:
         critic_feedback: str | None = None,
         image_brief: str | None = None,
         active_skill: dict | None = None,
+        style_note: str | None = None,
     ) -> tuple[str, str]:
         """Generate one direction's shot script (plan→detail, 纯推理).
 
@@ -277,6 +278,7 @@ class PromptBuilder:
             f"## 相关知识卡\n{knowledge}"
             f"{PromptBuilder._image_section(image_brief)}"
             f"{skill_prompt_section(active_skill)}"
+            f"{style_note or ''}"
         )
         if critic_feedback:
             user += (

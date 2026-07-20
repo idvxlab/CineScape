@@ -55,6 +55,11 @@ class SessionState(BaseModel):
     # -- user input --
     raw_intent: str = ""
     user_id: str = "anonymous"  # ADR-0017: 个人偏好层的归属;匿名会话不做个性化
+    # 实验开关(Evaluation §Design):外环的三个条件臂。
+    #   "full"  = 完整机制(探针裁决 + 已确证问题 enact 成 skill)
+    #   "naive" = 无验证记忆(过往采纳稿蒸馏成风格便签直接注入,不探针不确证不可撤销)
+    #   "off"   = 无记忆(每会话冷启动)
+    memory_mode: str = "full"
     reference_image: str | None = None  # 用户上传的基底图 URL(/api/uploads/..)
     image_brief: str | None = None  # 基底图的视觉描述(VLM 产出,可为空)
 

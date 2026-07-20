@@ -69,6 +69,8 @@ def _generate_send(state: SessionState, direction: dict) -> Send:
             current_direction=direction,
             critic_feedback=state.critic_feedback,
             active_skill=state.active_skill,  # ADR-0017: 会话级 skill 随分支下传
+            user_id=state.user_id,
+            memory_mode=state.memory_mode,  # 实验臂随分支下传(naive 需在 generate 内取记忆)
         ),
     )
 

@@ -570,11 +570,15 @@ async def _finalize_probe(session_id: str, values: dict) -> dict | None:
 
 
 def _question_applies(question: dict, tags: list[str]) -> bool:
-    """A question applies if global, or its intent-leaf/mechanism scope overlaps
-    the confirmed tags."""
+    """A question applies if global, its scope is among the confirmed tags, or
+    its discovery context overlaps them (ADR-0017: recurring context is a tag
+    set, matched by overlap — same-theme sessions vary in exact tags)."""
     if question.get("scope_type") == "global":
         return True
-    return question.get("scope_id") in set(tags or [])
+    tagset = set(tags or [])
+    if question.get("scope_id") in tagset:
+        return True
+    return bool(set(question.get("context_tags") or []) & tagset)
 
 
 @sessions_router.post("/{session_id}/select")

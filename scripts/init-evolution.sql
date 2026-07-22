@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS preference_questions (
     scope_type TEXT NOT NULL CHECK (scope_type IN ('intent_leaf', 'mechanism', 'global')),  -- c
     scope_id   TEXT,                     -- 叶子 ID / 机制族名;global 为 NULL
     decision   TEXT NOT NULL,            -- d: 电影化决策轴(展示)
+    context_tags TEXT[] NOT NULL DEFAULT '{}',  -- 发现会话的确认 tags;召回按与当前会话 tags 的重叠匹配
     alt_a      JSONB NOT NULL,           -- {label, detail:{field:value,...}, mechanism?}
     alt_b      JSONB NOT NULL,
     answers    JSONB NOT NULL DEFAULT '[]',   -- [{session_id, answer: a|b|open}]
@@ -39,6 +40,7 @@ CREATE TABLE IF NOT EXISTS preference_questions (
 );
 CREATE INDEX IF NOT EXISTS idx_pq_user_scope
     ON preference_questions (user_id, scope_type, scope_id);
+ALTER TABLE preference_questions ADD COLUMN IF NOT EXISTS context_tags TEXT[] NOT NULL DEFAULT '{}';
 
 -- ③ 用户画像(保留表用于审计)
 CREATE TABLE IF NOT EXISTS user_profile (

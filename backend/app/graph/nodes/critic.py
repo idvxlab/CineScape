@@ -85,7 +85,7 @@ async def critic_node(state: SessionState) -> dict:
                 intent_state, candidate, constraints, knowledge, skill_checks=skill_checks
             )
             try:
-                result = await client.chat(system, user)
+                result = await client.chat(system, user, enable_thinking=False)
                 data = parse_llm_json(result, log_name="critic")
                 if not data.get("passed", False):
                     issues = data.get("issues", [])

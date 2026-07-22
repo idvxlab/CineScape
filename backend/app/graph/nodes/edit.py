@@ -87,7 +87,7 @@ async def edit_node(state: SessionState) -> dict:
         edit_desc = {"patch": patch, "free_text": free_text or ""}
         system, user = builder.edit_revalidate(updated, edit_desc)
         try:
-            result = await client.chat(system, user)
+            result = await client.chat(system, user, enable_thinking=False)
             data = parse_llm_json(result, log_name="edit")
             conflicts.extend(data.get("conflicts", []))
         except Exception:

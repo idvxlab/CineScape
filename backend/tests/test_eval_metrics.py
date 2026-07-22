@@ -172,6 +172,31 @@ def test_persona_answers_probe_from_its_profile():
     assert answer_probe(p, widget, NoNoise()) == "a"
 
 
+def test_persona_answers_real_recall_probe_shape_from_labels():
+    """The live probe (build_verification_probe) carries text only in option
+    labels, not alt_a/alt_b dicts. The persona must still answer a/b, not tie
+    to 'open' — otherwise the ledger can never corroborate."""
+    from app.evolution.probes import build_verification_probe
+
+    p = PERSONAS[0]  # withholder: prefers locked-off static over handheld
+    question = {
+        "question_id": "q-movement",
+        "decision": "camera stillness under tension",
+        "alt_a": {"label": "locked-off static frame"},
+        "alt_b": {"label": "handheld instability"},
+    }
+    widget = build_verification_probe(question, swap=False)
+    assert "alt_a" not in widget  # real widget shape: labels only
+
+    class NoNoise:
+        def random(self):
+            return 1.0
+
+    assert answer_probe(p, widget, NoNoise()) == "a"
+    # order swap must not change the answer (value stays question-framed)
+    assert answer_probe(p, build_verification_probe(question, swap=True), NoNoise()) == "a"
+
+
 def test_persona_edits_script_toward_its_taste():
     p = PERSONAS[0]
     scheme = {"shots": [{"order": 1, "movement": "handheld instability, shaky"}]}

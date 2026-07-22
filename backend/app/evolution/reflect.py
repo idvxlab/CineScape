@@ -180,13 +180,38 @@ async def _reflect_session_inner(session_id: str) -> None:
     builder = PromptBuilder()
     system, user = builder.discover_questions(digest, existing_summ)
     try:
-        result = await client.chat(system, user)
+        result = await client.chat(system, user, enable_thinking=False)
         data = parse_llm_json(result, fallback={}, log_name="reflect")
     except Exception:
         logger.warning("Reflection LLM call failed for %s", session_id, exc_info=True)
         return
 
+    # Two discovery brakes (ADR-0017 tuning). Reflection over-produces, and the
+    # one-probe-per-session budget then can't accumulate the >=2 answers a
+    # question needs to corroborate. REFLECT_MAX_NEW_QUESTIONS bounds per-session
+    # minting; REFLECT_MAX_TOTAL_QUESTIONS bounds the *ledger* so discovery halts
+    # and probes converge on existing questions (see below).
+    import os
+
+    max_new = int(os.environ.get("REFLECT_MAX_NEW_QUESTIONS", "1"))
+    # Total-ledger budget: once the user holds this many active (non-revoked)
+    # questions, discovery *stops* so the one-probe-per-session budget is spent
+    # re-examining existing questions instead of minting fresh ``observed`` ones.
+    # Without this, ongoing discovery keeps the ``observed`` tier non-empty and
+    # (by fair_order_key's unverified-first rule) tentative questions never get
+    # a second answer — corroboration deadlocks. 0 = unbounded (prod default).
+    max_total = int(os.environ.get("REFLECT_MAX_TOTAL_QUESTIONS", "0"))
     revoked_ids = {q["question_id"] for q in existing if q["user_flag"] == "revoked"}
+    active_count = sum(1 for q in existing if q["user_flag"] != "revoked")
+    quota = max_new
+    if max_total > 0:
+        quota = min(max_new, max(0, max_total - active_count))
+        if quota == 0:
+            logger.info(
+                "Reflection: ledger at capacity (%d/%d), discovery paused for %s",
+                active_count, max_total, session_id,
+            )
+    created = 0
     for q in data.get("questions") or []:
         match_id = q.get("match_question_id")
         if match_id:
@@ -195,6 +220,8 @@ async def _reflect_session_inner(session_id: str) -> None:
             if match_id in revoked_ids:
                 logger.info("Reflection: skipping revoked question %s", match_id)
             continue
+        if created >= max_new:
+            break
         decision = (q.get("decision") or "").strip()
         alt_a, alt_b = q.get("alt_a"), q.get("alt_b")
         if not decision or not isinstance(alt_a, dict) or not isinstance(alt_b, dict):
@@ -209,5 +236,7 @@ async def _reflect_session_inner(session_id: str) -> None:
             decision=decision,
             alt_a=alt_a,
             alt_b=alt_b,
+            context_tags=digest.get("tags") or [],
         )
+        created += 1
         logger.info("Reflection: discovered question %s (%s)", qid, decision[:40])

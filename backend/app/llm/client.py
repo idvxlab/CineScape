@@ -59,11 +59,22 @@ class LLMClient:
 
     def _ensure_client(self) -> AsyncOpenAI:
         """Lazy-init the OpenAI client. Don't fail on empty key here -
-        actual API call will fail with a clearer error via try/except."""
+        actual API call will fail with a clearer error via try/except.
+
+        An explicit per-request timeout (default 180s) bounds the wait: some
+        gateways intermittently hang a request, and the SDK default (600s x
+        retries) turns one bad request into a ten-minute stall - fatal for a
+        long batch such as the evaluation judge. Override via LLM_TIMEOUT_S.
+        """
         if self._client is None:
+            import os
+
+            timeout = float(os.environ.get("LLM_TIMEOUT_S", "180"))
             self._client = AsyncOpenAI(
                 api_key=self.api_key,
                 base_url=self.base_url,
+                timeout=timeout,
+                max_retries=1,
             )
         return self._client
 

@@ -101,18 +101,30 @@ def fair_order_key(question: dict[str, Any]) -> tuple:
     """Sort key for fair round-robin probe selection (ADR-0017 §1.4).
 
     Priority (ascending sort → smaller first):
-    1. unverified (observed) before verified;
-    2. fewest distinct answering sessions;
-    3. corroborated ones least-recently re-examined (oldest last_probed_at).
-    ``emphasized`` questions are pulled forward within their tier; ``revoked``
+    1. *finish what's under way*: a question with at least one answer but not yet
+       corroborated (``tentative``) is probed before a brand-new ``observed`` one,
+       which is probed before an already ``corroborated`` one.
+    2. within a tier, closest-to-corroboration first (most answering sessions);
+    3. then least-recently re-examined (oldest ``last_probed_at``).
+    ``emphasized`` questions are pulled forward across tiers; ``revoked``
     questions must be filtered out *before* sorting (never probed).
+
+    Rationale — this replaces a plain "unverified before verified" rule. Under
+    ongoing (asynchronous) discovery, always probing the newest observed question
+    means the one-probe-per-session budget never returns to give any question its
+    second answer, so nothing ever corroborates. Draining tentatives first closes
+    that gap: a question probed in session N is re-probed in N+1 and corroborates,
+    independent of how many observed questions discovery has piled up.
     """
     status = question.get("status") or compute_status(question.get("answers") or [])
-    status_rank = 0 if status == STATUS_OBSERVED else 1
+    status_rank = {STATUS_TENTATIVE: 0, STATUS_OBSERVED: 1}.get(status, 2)
     emphasized = 0 if question.get("user_flag") == "emphasized" else 1
     n_sessions = len(_session_answers(question.get("answers") or []))
+    # Closer-to-corroboration first within a tier (more answering sessions).
+    # Inert for observed (always 0); for corroborated, skill activation — not this
+    # ordering — governs, so the tie-breaks below only affect verification order.
     last = question.get("last_probed_at") or ""  # empty sorts first (never probed)
-    return (emphasized, status_rank, n_sessions, str(last))
+    return (emphasized, status_rank, -n_sessions, str(last))
 
 
 # ---------------------------------------------------------------------------
@@ -127,15 +139,23 @@ async def create_question(
     decision: str,
     alt_a: dict[str, Any],
     alt_b: dict[str, Any],
+    context_tags: list[str] | None = None,
 ) -> str:
-    """Insert a newly discovered preference question (status observed)."""
+    """Insert a newly discovered preference question (status observed).
+
+    ``context_tags`` are the discovery session's confirmed intent tags. Recall
+    matches on *overlap* with a later session's tags rather than exact scope
+    equality, because same-theme sessions produce overlapping-but-not-identical
+    tag sets (ADR-0017: the "recurring context" is a set, not a single leaf).
+    """
     pool = get_pool()
     async with pool.connection() as conn:
         cursor = await conn.execute(
             """
             INSERT INTO preference_questions
-                (user_id, scope_type, scope_id, decision, alt_a, alt_b, status)
-            VALUES (%s, %s, %s, %s, %s::jsonb, %s::jsonb, 'observed')
+                (user_id, scope_type, scope_id, decision, alt_a, alt_b,
+                 context_tags, status)
+            VALUES (%s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, 'observed')
             RETURNING question_id
             """,
             (
@@ -145,6 +165,7 @@ async def create_question(
                 decision,
                 json.dumps(alt_a, ensure_ascii=False),
                 json.dumps(alt_b, ensure_ascii=False),
+                context_tags or [],
             ),
         )
         row = await cursor.fetchone()
@@ -161,7 +182,8 @@ async def get_questions_for_user(
         cursor = await conn.execute(
             """
             SELECT question_id, scope_type, scope_id, decision, alt_a, alt_b,
-                   answers, status, user_flag, last_probed_at, created_at, updated_at
+                   answers, status, user_flag, last_probed_at, created_at, updated_at,
+                   context_tags
             FROM preference_questions
             WHERE user_id = %s AND (%s OR user_flag <> 'revoked')
             ORDER BY updated_at DESC
@@ -189,7 +211,8 @@ async def get_recallable_for_scopes(
         cursor = await conn.execute(
             """
             SELECT question_id, scope_type, scope_id, decision, alt_a, alt_b,
-                   answers, status, user_flag, last_probed_at, created_at, updated_at
+                   answers, status, user_flag, last_probed_at, created_at, updated_at,
+                   context_tags
             FROM preference_questions
             WHERE user_id = %s
               AND user_flag <> 'revoked'
@@ -197,9 +220,11 @@ async def get_recallable_for_scopes(
                     scope_type = 'global'
                  OR (scope_type = 'intent_leaf' AND scope_id = ANY(%s))
                  OR (scope_type = 'mechanism'   AND scope_id = ANY(%s))
+                 OR context_tags && %s::text[]   -- 上下文 tag 集与当前会话重叠
               )
             """,
-            (user_id, intent_leaves or [""], mechanisms or [""]),
+            (user_id, intent_leaves or [""], mechanisms or [""],
+             intent_leaves or [""]),
         )
         rows = await cursor.fetchall()
     questions = [_row_to_dict(r) for r in rows]
@@ -291,4 +316,5 @@ def _row_to_dict(r: tuple) -> dict[str, Any]:
         "last_probed_at": r[9].isoformat() if r[9] else None,
         "created_at": r[10].isoformat() if r[10] else None,
         "updated_at": r[11].isoformat() if r[11] else None,
+        "context_tags": r[12] if len(r) > 12 else [],
     }

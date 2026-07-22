@@ -31,24 +31,25 @@ def _alt_text(alt: dict[str, Any]) -> str:
     return f"{alt.get('label', '')} {detail} {alt.get('mechanism', '')}".lower()
 
 
-def answer_probe(persona: Persona, widget: dict[str, Any], rng: random.Random,
-                 scope_hint: str = "") -> str:
-    """Answer a preference probe from the profile (deterministic when possible).
+def _token_pick(persona: Persona, widget: dict[str, Any], scope_hint: str = "") -> str:
+    """Noise-free base pick from token overlap. Returns 'a', 'b', or 'open'.
 
     Scores each alternative by how many profile 'prefer' phrases it echoes minus
-    'avoid' phrases; a clear winner is chosen, a tie yields 'open'. Noise flips
-    the answer with probability ``persona.noise`` so the ledger must survive
-    inconsistency.
+    'avoid' phrases; a clear winner wins, a tie yields 'open'. Works only when the
+    option text literally names the profile's parameter values — the discovery
+    LLM often labels alternatives in abstract design language ("God-Eye
+    Detachment"), which shares no tokens with the profile and ties here; those
+    fall through to :func:`_llm_probe_pick`.
     """
-    if widget.get("kind") == "skill_activation":
-        # the persona wants its own taste applied, except under answer noise
-        return "leave" if rng.random() < persona.noise else "apply"
-
     a_txt, b_txt = _alt_text(widget.get("alt_a") or {}), _alt_text(widget.get("alt_b") or {})
     if not a_txt.strip() and not b_txt.strip():
-        opts = [o.get("value") for o in widget.get("options") or []]
-        a_txt = str(opts[0] if opts else "")
-        b_txt = str(opts[1] if len(opts) > 1 else "")
+        # Recall probes (build_verification_probe) carry text only in option
+        # *labels*, keyed by value ('a'/'b', order may be swapped).
+        label_by_value = {
+            o.get("value"): str(o.get("label", "")) for o in widget.get("options") or []
+        }
+        a_txt = label_by_value.get("a", "").lower()
+        b_txt = label_by_value.get("b", "").lower()
 
     score_a = score_b = 0
     for e in persona.profile:
@@ -63,10 +64,82 @@ def answer_probe(persona: Persona, widget: dict[str, Any], rng: random.Random,
 
     if score_a == score_b:
         return "open"
-    answer = "a" if score_a > score_b else "b"
-    if rng.random() < persona.noise:
-        answer = "b" if answer == "a" else "a"
-    return answer
+    return "a" if score_a > score_b else "b"
+
+
+def _apply_noise(pick: str, persona: Persona, rng: random.Random) -> str:
+    """Flip a concrete a/b answer with probability ``persona.noise`` so the
+    ledger must survive an inconsistent oracle. 'open' is never flipped."""
+    if pick in ("a", "b") and rng.random() < persona.noise:
+        return "b" if pick == "a" else "a"
+    return pick
+
+
+def answer_probe(persona: Persona, widget: dict[str, Any], rng: random.Random,
+                 scope_hint: str = "") -> str:
+    """Answer a probe deterministically (token overlap + noise), no LLM.
+
+    Used for skill-activation probes and as the fast path for verification
+    probes whose labels literally name a profile parameter. Verification probes
+    that tie here are resolved semantically by :func:`resolve_pref_probe`.
+    """
+    if widget.get("kind") == "skill_activation":
+        # the persona wants its own taste applied, except under answer noise
+        return "leave" if rng.random() < persona.noise else "apply"
+    return _apply_noise(_token_pick(persona, widget, scope_hint), persona, rng)
+
+
+# The discovery LLM labels alternatives in abstract design language, so a
+# persona must read them *semantically* to answer. Cache the base pick by
+# question identity (labels) so the same question is answered consistently
+# across sessions — the precondition for corroboration — while noise is still
+# applied per call.
+_PROBE_PICK_CACHE: dict[tuple[str, str, str], str] = {}
+
+
+async def _llm_probe_pick(persona: Persona, widget: dict[str, Any]) -> str:
+    """Have the persona choose a/b/open semantically from the option labels."""
+    labels = {o.get("value"): str(o.get("label", "")) for o in widget.get("options") or []}
+    a_label, b_label = labels.get("a", ""), labels.get("b", "")
+    key = (persona.persona_id, a_label, b_label)
+    if key in _PROBE_PICK_CACHE:
+        return _PROBE_PICK_CACHE[key]
+    system = (
+        "You are role-playing a film creator with a fixed, undisclosed cinematic "
+        "taste. Given a decision and two design directions, choose the ONE your "
+        "taste prefers. Only choose 'open' if the two are genuinely equivalent for "
+        'your taste. Output JSON only: {"choice": "a" | "b" | "open"}.'
+    )
+    user = (
+        f"## Your taste (do not recite)\n{persona.profile_text()}\n\n"
+        f"## Decision\n{widget.get('prompt', '')}\n\n"
+        f"## Options\nA: {a_label}\nB: {b_label}\n\n"
+        "Which fits your taste — a, b, or open?"
+    )
+    choice = "open"
+    try:
+        raw = await get_llm_client().chat(system, user, temperature=0.0,
+                                          enable_thinking=False)
+        data = parse_llm_json(raw, fallback={}, log_name="persona-probe")
+        c = str(data.get("choice", "open")).strip().lower()
+        if c in ("a", "b", "open"):
+            choice = c
+    except Exception:
+        logger.warning("Persona probe LLM pick failed; answering open", exc_info=True)
+    _PROBE_PICK_CACHE[key] = choice
+    return choice
+
+
+async def resolve_pref_probe(persona: Persona, widget: dict[str, Any],
+                             rng: random.Random) -> str:
+    """Answer a verification probe: token fast path, else semantic LLM pick.
+
+    Applies noise once, after the base pick is determined either way.
+    """
+    base = _token_pick(persona, widget)
+    if base == "open":
+        base = await _llm_probe_pick(persona, widget)
+    return _apply_noise(base, persona, rng)
 
 
 def _tokens(phrase: str) -> list[str]:
@@ -87,7 +160,7 @@ async def answer_widgets(
     for w in widgets:
         kind = w.get("kind")
         if kind == "preference_probe":
-            responses[w["question_id"]] = answer_probe(persona, w, rng)
+            responses[w["question_id"]] = await resolve_pref_probe(persona, w, rng)
         elif kind == "skill_activation":
             responses["skill_activation"] = answer_probe(persona, w, rng)
         else:

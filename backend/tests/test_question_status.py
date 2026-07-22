@@ -80,20 +80,23 @@ def test_open_can_itself_prevail():
 # --- fair ordering ----------------------------------------------------------
 
 
-def test_fair_order_unverified_before_verified():
+def test_fair_order_tentative_before_observed_before_corroborated():
+    """lever-2: finish questions already under way before opening new ones."""
     observed = {"status": "observed", "answers": [], "user_flag": "none"}
+    tentative = {"status": "tentative", "answers": [_ans("s1", "a")], "user_flag": "none"}
     corrob = {"status": "corroborated",
               "answers": [_ans("s1", "a"), _ans("s2", "a")], "user_flag": "none"}
-    ordered = sorted([corrob, observed], key=fair_order_key)
-    assert ordered[0]["status"] == "observed"
+    ordered = sorted([corrob, observed, tentative], key=fair_order_key)
+    assert [q["status"] for q in ordered] == ["tentative", "observed", "corroborated"]
 
 
-def test_fair_order_fewest_answers_first_within_tier():
-    q_few = {"status": "tentative", "answers": [_ans("s1", "a")], "user_flag": "none"}
-    q_many = {"status": "tentative",
-              "answers": [_ans("s1", "a"), _ans("s2", "a")], "user_flag": "none"}
-    ordered = sorted([q_many, q_few], key=fair_order_key)
-    assert ordered[0] is q_few
+def test_fair_order_closest_to_corroboration_first_within_tier():
+    # Among tentatives, the one nearer the >=2-answer threshold is finished first.
+    q_far = {"status": "tentative", "answers": [_ans("s1", "a")], "user_flag": "none"}
+    q_near = {"status": "tentative",
+              "answers": [_ans("s1", "a"), _ans("s2", "b")], "user_flag": "none"}
+    ordered = sorted([q_far, q_near], key=fair_order_key)
+    assert ordered[0] is q_near
 
 
 def test_emphasized_pulled_forward():

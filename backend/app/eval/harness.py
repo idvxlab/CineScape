@@ -95,13 +95,18 @@ class Harness:
             probe_response = None
             probe = turn.get("probe")
             if probe:
-                from app.eval.simulate import answer_probe
+                from app.eval.simulate import answer_probe, resolve_pref_probe
 
-                ans = answer_probe(persona, probe, rng, scope_hint=(res.tags or [""])[0])
-                probe_response = (
-                    {"skill_activation": ans} if probe["kind"] == "skill_activation"
-                    else {"question_id": probe["question_id"], "answer": ans}
-                )
+                if probe["kind"] == "skill_activation":
+                    ans = answer_probe(persona, probe, rng)
+                    probe_response = {"skill_activation": ans}
+                else:
+                    # Verification probes carry abstract design-language labels;
+                    # resolve_pref_probe adds the semantic LLM fallback the sync
+                    # token matcher can't (otherwise every answer ties to 'open'
+                    # and the ledger never corroborates).
+                    ans = await resolve_pref_probe(persona, probe, rng)
+                    probe_response = {"question_id": probe["question_id"], "answer": ans}
 
             turn = (await client.post(
                 f"{self.base}/sessions/{res.session_id}/confirm",

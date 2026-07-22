@@ -61,7 +61,7 @@ async def strategy_node(state: SessionState) -> dict:
     )
 
     try:
-        result = await client.chat(system, user)
+        result = await client.chat(system, user, enable_thinking=False)
         data = parse_llm_json(result, fallback={}, log_name="strategy")
     except Exception:
         logger.exception("Strategy LLM call failed")

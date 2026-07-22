@@ -10,12 +10,13 @@ from __future__ import annotations
 from app.evolution.questions import (
     compute_status,
     fair_order_key,
+    merge_vote,
     prevailing_answer,
 )
 
 
-def _ans(session, answer):
-    return {"session_id": session, "answer": answer}
+def _ans(session, answer, source="probe"):
+    return {"session_id": session, "answer": answer, "source": source}
 
 
 # --- prevailing answer ------------------------------------------------------
@@ -41,6 +42,42 @@ def test_repeated_answers_one_session_stay_tentative():
     # a user's repeated answers in one session are one vote, not two
     a = [_ans("s1", "a"), _ans("s1", "a"), _ans("s1", "a")]
     assert compute_status(a) == "tentative"
+
+
+# --- behavioural votes weigh equally to probes (ADR-0017) -------------------
+
+
+def test_behavioural_recurrence_corroborates_like_probes():
+    # the same decision recurring (behaviour) across two sessions → corroborated,
+    # no explicit probe needed
+    a = [_ans("s1", "a", "behavior"), _ans("s2", "a", "behavior")]
+    assert compute_status(a) == "corroborated"
+
+
+def test_mixed_probe_and_behaviour_agree_corroborate():
+    a = [_ans("s1", "a", "probe"), _ans("s2", "a", "behavior")]
+    assert compute_status(a) == "corroborated"
+
+
+def test_merge_probe_overwrites_same_session_vote():
+    existing = [_ans("s1", "a", "behavior")]
+    merged, changed = merge_vote(existing, "s1", "b", "probe")
+    assert changed
+    assert merged == [{"session_id": "s1", "answer": "b", "source": "probe"}]
+
+
+def test_merge_behaviour_never_overwrites_a_settled_session():
+    existing = [_ans("s1", "a", "probe")]
+    merged, changed = merge_vote(existing, "s1", "b", "behavior")
+    assert not changed
+    assert merged == existing  # explicit vote stands, behaviour does not overrule
+
+
+def test_merge_behaviour_adds_a_new_session_and_can_corroborate():
+    existing = [_ans("s1", "a", "probe")]
+    merged, changed = merge_vote(existing, "s2", "a", "behavior")
+    assert changed
+    assert compute_status(merged) == "corroborated"
 
 
 def test_last_answer_within_session_wins():

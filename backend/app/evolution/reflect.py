@@ -1,17 +1,21 @@
 """Reflection pipeline (ADR-0017).
 
-Runs asynchronously after a session ends. Its job is *discovery*, not
-adjudication: it turns the interaction trace into candidate preference
-questions ``q = (c, d, a, b)`` but never changes a question's status. Only
-explicit probe answers (via ``questions.record_answer``) settle a question.
+Runs asynchronously after a session ends. It turns the interaction trace into
+candidate preference questions ``q = (c, d, a, b)`` and, on *recurrence*, lets
+behaviour advance a question's status.
 
 Steps:
 1. Deterministic preprocessing (``build_evidence_digest``): net edits,
    perceptual verdicts, candidate comparisons. Pure and unit-testable.
 2. LLM proposes preference questions grounded in the design space (or matches
    existing ones by id).
-3. New questions are inserted at status ``observed``; matches are left
-   untouched (behaviour proposes, probes settle).
+3. A *first* sighting is inserted at status ``observed`` (a hypothesis, no
+   vote). A *match* — the same decision recurring in a later session — casts a
+   behavioural vote for the side this session leaned to, which advances the
+   question just like a probe answer (ADR-0017: behaviour proposes, and its
+   recurrence corroborates; an explicit probe still settles and outweighs it).
+   Recurring behaviour therefore consolidates onto one question instead of
+   minting duplicate ``observed`` copies.
 
 Non-critical (flywheel semantics): any failure is logged, never raised.
 """
@@ -21,7 +25,11 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from app.evolution.questions import create_question, get_questions_for_user
+from app.evolution.questions import (
+    create_question,
+    get_questions_for_user,
+    record_answer,
+)
 from app.evolution.trace import load_session_trace
 from app.llm import PromptBuilder, get_llm_client
 
@@ -186,39 +194,39 @@ async def _reflect_session_inner(session_id: str) -> None:
         logger.warning("Reflection LLM call failed for %s", session_id, exc_info=True)
         return
 
-    # Two discovery brakes (ADR-0017 tuning). Reflection over-produces, and the
-    # one-probe-per-session budget then can't accumulate the >=2 answers a
-    # question needs to corroborate. REFLECT_MAX_NEW_QUESTIONS bounds per-session
-    # minting; REFLECT_MAX_TOTAL_QUESTIONS bounds the *ledger* so discovery halts
-    # and probes converge on existing questions (see below).
+    # Per-session discovery brake: reflection tends to over-produce, so cap how
+    # many *new* questions one session may mint (default 1). Recurrence no longer
+    # needs a probe to advance a question (behavioural votes do), so runaway
+    # discovery is self-correcting — a recurring decision matches and votes
+    # rather than minting a duplicate ``observed``.
     import os
 
     max_new = int(os.environ.get("REFLECT_MAX_NEW_QUESTIONS", "1"))
-    # Total-ledger budget: once the user holds this many active (non-revoked)
-    # questions, discovery *stops* so the one-probe-per-session budget is spent
-    # re-examining existing questions instead of minting fresh ``observed`` ones.
-    # Without this, ongoing discovery keeps the ``observed`` tier non-empty and
-    # (by fair_order_key's unverified-first rule) tentative questions never get
-    # a second answer — corroboration deadlocks. 0 = unbounded (prod default).
-    max_total = int(os.environ.get("REFLECT_MAX_TOTAL_QUESTIONS", "0"))
     revoked_ids = {q["question_id"] for q in existing if q["user_flag"] == "revoked"}
-    active_count = sum(1 for q in existing if q["user_flag"] != "revoked")
-    quota = max_new
-    if max_total > 0:
-        quota = min(max_new, max(0, max_total - active_count))
-        if quota == 0:
-            logger.info(
-                "Reflection: ledger at capacity (%d/%d), discovery paused for %s",
-                active_count, max_total, session_id,
-            )
     created = 0
+    existing_ids = {q["question_id"] for q in existing}
     for q in data.get("questions") or []:
         match_id = q.get("match_question_id")
         if match_id:
-            # Behaviour proposes but never settles; a matched question is left
-            # untouched (its status changes only through probe answers).
-            if match_id in revoked_ids:
-                logger.info("Reflection: skipping revoked question %s", match_id)
+            # Recurrence: the same decision seen again casts a behavioural vote
+            # for the side this session leaned to, advancing the question just
+            # like a probe (record_answer leaves an explicit vote untouched).
+            if match_id in revoked_ids or match_id not in existing_ids:
+                logger.info("Reflection: skipping match %s (revoked/unknown)", match_id)
+                continue
+            side = str(q.get("match_answer") or "").strip().lower()
+            if side not in ("a", "b", "open"):
+                logger.info("Reflection: match %s without a side, no vote", match_id)
+                continue
+            try:
+                new_status = await record_answer(
+                    session_id, match_id, side, source="behavior"
+                )
+                logger.info("Reflection: behavioural vote %s on %s → %s",
+                            side, match_id, new_status)
+            except Exception:
+                logger.warning("Reflection: behavioural vote failed for %s",
+                               match_id, exc_info=True)
             continue
         if created >= max_new:
             break

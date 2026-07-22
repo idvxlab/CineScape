@@ -353,8 +353,11 @@ class PromptBuilder:
         """
         system = (
             "你是偏好问题发现者。从一次创作会话的交互线索里,提出关于【这个用户】的"
-            "**偏好问题**(不是结论)。核心信条:行为只能*提出问题*,不能*裁决*——"
-            "完整候选常在多个维度上不同、且可能已被上次个性化影响,无法干净归因到单一决策。\n\n"
+            "**偏好问题**。核心信条:行为**提出**问题;当同一决策在后续会话**复现**并命中"
+            "已有问题时,行为为它所倾向的一侧**投一票**,像探针答案一样推进其状态"
+            "(observed→tentative→corroborated)。首次提出只创建(observed,不投票);"
+            "复现即证据。完整候选常在多个维度上不同,无法干净归因,故首次不断言偏哪边——"
+            "但命中已有的窄问题时,本会话确实倾向了某一侧,要如实指出。\n\n"
             "一道偏好问题 q=(c,d,a,b):\n"
             "- c 上下文(scope):**必须**取自本会话的确认 tags(见线索里的 tags)或 global——\n"
             "  intent_leaf 的 scope_id 只能是本会话 tags 里的某个 code(不得凭空另选一个无关叶子,\n"
@@ -373,14 +376,16 @@ class PromptBuilder:
             "- 只在交互线索**真的暗示了一个二选一取舍**时提问;情境性修补(这个画面"
             "主体太小才拉远)不要提成偏好。\n"
             "- a,b 必须是同一决策轴上的对立面,且都在设计空间内可执行。\n"
-            "- 命中已有问题就给 match_question_id(其状态由探针裁决,你不要改);已被用户 revoked 的"
+            "- 命中已有问题就给 match_question_id,并给 **match_answer**:本会话行为倾向该问题的"
+            "哪一侧(\"a\"/\"b\");若本会话对该问题两侧都没明显倾向,给 \"open\"。已被用户 revoked 的"
             "问题不得重新提出。\n"
-            "- 不打任何分数/置信度,不断言用户偏好哪一边(那由探针回答决定)。\n\n"
+            "- 不打任何分数/置信度。**新建**问题时不断言偏哪边(match_answer 只在命中时给)。\n\n"
             "输出 JSON:\n"
             "{\n"
             '  "questions": [\n'
             "    {\n"
             '      "match_question_id": null,\n'
+            '      "match_answer": "命中时给 a|b|open,新建时省略",\n'
             '      "scope_type": "intent_leaf|mechanism|global",\n'
             '      "scope_id": "6.2 或 机制族名 或 null",\n'
             '      "decision": "one-sentence decision axis (English)",\n'

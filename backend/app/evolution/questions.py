@@ -77,6 +77,24 @@ def prevailing_answer(answers: list[dict[str, Any]]) -> str | None:
     return top[0][0]
 
 
+def merge_vote(
+    answers: list[dict[str, Any]], session_id: str, answer: str, source: str
+) -> tuple[list[dict[str, Any]], bool]:
+    """Pure vote-merge (ADR-0017). Returns ``(new_answers, changed)``.
+
+    ``probe`` (explicit) overwrites this session's prior vote; ``behavior``
+    (recurrence) only adds when the session has no vote yet — an explicit or
+    earlier behavioural vote for the same session is left standing, so behaviour
+    accrues evidence but never overrules a settled answer. ``source`` is stored
+    on each vote so both weigh equally in ``compute_status`` yet stay auditable.
+    """
+    if source == "behavior" and any(a.get("session_id") == session_id for a in answers):
+        return list(answers), False
+    kept = [a for a in answers if a.get("session_id") != session_id]
+    kept.append({"session_id": session_id, "answer": answer, "source": source})
+    return kept, True
+
+
 def compute_status(answers: list[dict[str, Any]]) -> str:
     """Derive status purely from the answer history (ADR-0017 §1.3).
 
@@ -232,15 +250,27 @@ async def get_recallable_for_scopes(
     return questions
 
 
-async def record_answer(session_id: str, question_id: str, answer: str) -> str:
-    """Append a probe answer and recompute status. Returns the new status.
+async def record_answer(
+    session_id: str, question_id: str, answer: str, source: str = "probe"
+) -> str:
+    """Append a vote and recompute status. Returns the new status.
 
-    Idempotent per (session, question): a re-answer in the same session
-    overwrites that session's vote (mirrors ``_session_answers``). Also stamps
-    ``last_probed_at`` for the fair-selection recency tier.
+    Two vote *sources* carry equal weight in ``compute_status`` (ADR-0017):
+    - ``probe`` — an explicit answer at the confirm gate. Overwrites any earlier
+      vote from the same session (a re-answer supersedes) and stamps
+      ``last_probed_at`` for the fair-selection recency tier.
+    - ``behavior`` — a recurring behavioural signal recorded by reflection when a
+      later session's edits/comparisons match an existing question. Behaviour
+      *accrues* but never overwrites: if the session already has a vote (explicit
+      or a prior behavioural one), it is left as-is — a probe settles, behaviour
+      only adds evidence. It does not stamp ``last_probed_at`` (we didn't ask).
+
+    Idempotent per (session, question) in both cases.
     """
     if answer not in VALID_ANSWERS:
-        raise ValueError(f"invalid probe answer '{answer}'")
+        raise ValueError(f"invalid answer '{answer}'")
+    if source not in ("probe", "behavior"):
+        raise ValueError(f"invalid vote source '{source}'")
     pool = get_pool()
     async with pool.connection() as conn:
         cursor = await conn.execute(
@@ -250,14 +280,17 @@ async def record_answer(session_id: str, question_id: str, answer: str) -> str:
         row = await cursor.fetchone()
         if row is None:
             raise ValueError(f"question {question_id} not found")
-        answers = [a for a in (row[0] or []) if a.get("session_id") != session_id]
-        answers.append({"session_id": session_id, "answer": answer})
+        existing = row[0] or []
+        answers, changed = merge_vote(existing, session_id, answer, source)
         status = compute_status(answers)
+        if not changed:
+            # behaviour left an existing (explicit/earlier) vote untouched.
+            return status
+        probed_clause = ", last_probed_at = NOW()" if source == "probe" else ""
         await conn.execute(
-            """
+            f"""
             UPDATE preference_questions
-            SET answers = %s::jsonb, status = %s,
-                last_probed_at = NOW(), updated_at = NOW()
+            SET answers = %s::jsonb, status = %s{probed_clause}, updated_at = NOW()
             WHERE question_id = %s
             """,
             (json.dumps(answers, ensure_ascii=False), status, question_id),

@@ -37,6 +37,48 @@ from app.graph.nodes import (
 from app.graph.state import SessionState
 
 # ---------------------------------------------------------------------------
+# Optional per-stage timing (env-gated; off in production).
+# Set STAGE_TIMING=1 to log "STAGE <node> <sec> sid=<session_id>" per node
+# invocation — used to profile where a pipeline turn spends its wall-clock.
+# ---------------------------------------------------------------------------
+
+import logging
+import os
+import time
+
+_stage_log = logging.getLogger("stage_timing")
+_STAGE_TIMING = os.environ.get("STAGE_TIMING") == "1"
+if _STAGE_TIMING and not _stage_log.handlers:
+    _h = logging.StreamHandler()
+    _h.setFormatter(logging.Formatter("%(asctime)s %(message)s", "%H:%M:%S"))
+    _stage_log.addHandler(_h)
+    _stage_log.setLevel(logging.INFO)
+    _stage_log.propagate = False
+
+
+def _timed(name: str, fn):
+    """Wrap a node coroutine to log its wall-clock when STAGE_TIMING=1."""
+    if not _STAGE_TIMING:
+        return fn
+
+    async def wrapper(state):
+        sid = ""
+        try:
+            sid = getattr(state, "session_id", "") or (
+                state.get("session_id", "") if isinstance(state, dict) else ""
+            )
+        except Exception:
+            pass
+        t0 = time.perf_counter()
+        try:
+            return await fn(state)
+        finally:
+            _stage_log.info("STAGE %s %.2f sid=%s", name, time.perf_counter() - t0, sid)
+
+    return wrapper
+
+
+# ---------------------------------------------------------------------------
 # Router functions — determine which node to transition to next
 # ---------------------------------------------------------------------------
 
@@ -120,16 +162,16 @@ def build_graph() -> StateGraph:
     builder = StateGraph(SessionState)
 
     # -- register nodes --
-    builder.add_node("align", align_node)
-    builder.add_node("convergence_check", convergence_node)
-    builder.add_node("ask_user", ask_user_node)
-    builder.add_node("confirm_gate", confirm_gate_node)
-    builder.add_node("strategy", strategy_node)
-    builder.add_node("generate", generate_node)
-    builder.add_node("critic", critic_node)
-    builder.add_node("present_candidates", present_candidates_node)
-    builder.add_node("edit", edit_node)
-    builder.add_node("writeback", writeback_node)
+    builder.add_node("align", _timed("align", align_node))
+    builder.add_node("convergence_check", _timed("convergence", convergence_node))
+    builder.add_node("ask_user", _timed("ask_user", ask_user_node))
+    builder.add_node("confirm_gate", _timed("confirm_gate", confirm_gate_node))
+    builder.add_node("strategy", _timed("strategy", strategy_node))
+    builder.add_node("generate", _timed("generate", generate_node))
+    builder.add_node("critic", _timed("critic", critic_node))
+    builder.add_node("present_candidates", _timed("present_candidates", present_candidates_node))
+    builder.add_node("edit", _timed("edit", edit_node))
+    builder.add_node("writeback", _timed("writeback", writeback_node))
 
     # -- alignment loop --
     builder.add_edge(START, "align")

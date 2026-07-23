@@ -37,6 +37,27 @@ def test_comparison_extracted_from_candidate_select():
     assert {r["id"] for r in comp["rejected"]} == {"B", "C"}
 
 
+def test_dominant_intents_from_selected_direction_drive_scope():
+    # The chosen direction's dominant_intents — not arbitrary session tags —
+    # are what a discovered preference should be scoped to.
+    trace = [
+        _ev("s1", "candidate_select", {
+            "selected": "A",
+            "rejected": ["B"],
+            "directions": [
+                {"id": "A", "name": "威胁隐匿", "dominant_intents": ["8.3", "5.2"]},
+                {"id": "B", "name": "对称构图", "dominant_intents": ["11.2"]},
+            ],
+            "tags": ["6.2", "8.3", "5.2", "11.2", "1.2"],
+            "brief": "suspense",
+        }),
+    ]
+    d = build_evidence_digest(trace)
+    # only the *selected* direction's intents, deduped, order-preserved
+    assert d["dominant_intents"] == ["8.3", "5.2"]
+    assert "6.2" not in d["dominant_intents"]  # a session tag, but not driving
+
+
 def test_net_edit_collapses_multiple_edits():
     trace = [
         _ev("s1", "edit_patch", {"ops": [{"shot_order": 1, "field": "shot_size",

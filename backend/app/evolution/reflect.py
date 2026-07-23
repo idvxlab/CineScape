@@ -126,9 +126,18 @@ def build_evidence_digest(trace: list[dict[str, Any]]) -> dict[str, Any]:
             }
         )
 
+    # The *driving* intents: dominant_intents of the directions the user chose.
+    # A preference discovered from a choice belongs to what that direction was
+    # about, not to an arbitrary session tag — so scope questions to these.
+    dominant: list[str] = []
+    for c in comparisons:
+        dominant += (c.get("selected") or {}).get("dominant_intents") or []
+    dominant = list(dict.fromkeys(dominant))  # dedup, preserve order
+
     return {
         "session_id": session_id,
         "tags": tags,
+        "dominant_intents": dominant,
         "brief": brief,
         "comparisons": comparisons,
         "net_edits": list(net.values()),
@@ -145,11 +154,19 @@ def build_evidence_digest(trace: list[dict[str, Any]]) -> dict[str, Any]:
 
 async def reflect_session(session_id: str) -> None:
     """Discover candidate preference questions from a session. Never raises."""
+    import os
+    import time
+
+    t0 = time.perf_counter()
     try:
         await _reflect_session_inner(session_id)
     except Exception:
         logger.warning("Reflection failed for session %s (non-critical)", session_id,
                        exc_info=True)
+    finally:
+        if os.environ.get("STAGE_TIMING") == "1":
+            logging.getLogger("stage_timing").info(
+                "STAGE reflect %.2f sid=%s", time.perf_counter() - t0, session_id)
 
 
 async def _reflect_session_inner(session_id: str) -> None:
@@ -237,14 +254,28 @@ async def _reflect_session_inner(session_id: str) -> None:
         scope_type = q.get("scope_type") or "intent_leaf"
         if scope_type not in ("intent_leaf", "mechanism", "global"):
             scope_type = "intent_leaf"
+        scope_id = q.get("scope_id")
+        # Scope attribution guard: an intent_leaf preference must belong to an
+        # intent the *chosen* direction actually served (digest.dominant_intents).
+        # If the LLM scoped it to an unrelated session tag, record it as a
+        # cross-context (global) preference rather than mis-filing it under a
+        # leaf where it will never be recalled or credited.
+        dominant = digest.get("dominant_intents") or []
+        if scope_type == "intent_leaf" and dominant and scope_id not in dominant:
+            logger.info("Reflection: scope %s not in driving intents %s → global",
+                        scope_id, dominant)
+            scope_type, scope_id = "global", None
         qid = await create_question(
             user_id=user_id,
             scope_type=scope_type,
-            scope_id=q.get("scope_id"),
+            scope_id=scope_id,
             decision=decision,
             alt_a=alt_a,
             alt_b=alt_b,
-            context_tags=digest.get("tags") or [],
+            # Recall context = the driving intents (not all session tags), so a
+            # later same-intent session recalls it precisely.
+            context_tags=dominant or digest.get("tags") or [],
         )
         created += 1
-        logger.info("Reflection: discovered question %s (%s)", qid, decision[:40])
+        logger.info("Reflection: discovered question %s scope=%s/%s (%s)",
+                    qid, scope_type, scope_id, decision[:40])

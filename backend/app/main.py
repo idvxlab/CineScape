@@ -17,6 +17,7 @@ from app.api.router import api_router
 from app.db import close_pool, get_settings, init_database, init_pool
 from app.graph import build_graph
 from app.storage import ensure_uploads_dir
+from app.study import ensure_study_assets
 
 
 @asynccontextmanager
@@ -24,6 +25,7 @@ async def lifespan(app: FastAPI):
     """Initialize DB pool, run migrations, compile graph with checkpointer."""
     pool = await init_pool()
     await init_database()
+    ensure_study_assets()  # ADR-0019: 评测素材复制到 uploads/study/(幂等)
 
     graph_builder = build_graph()
     # Keep checkpointer connection alive for the entire app lifespan

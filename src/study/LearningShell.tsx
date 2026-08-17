@@ -50,14 +50,14 @@ export function LearningShell({ run, index, total, intentCode, userId, onSession
   return (
     <div className="study-shell">
       <div className="study-taskbar">
-        <span className="study-taskbar-title">学习会话 {index}/{total}</span>
-        <span className="study-taskbar-scene">场景 {run.scene_id} · 意图 {intentCode}</span>
+        <span className="study-taskbar-title">Learning session {index}/{total}</span>
+        <span className="study-taskbar-scene">Scene {run.scene_id} · Intent {intentCode}</span>
         {run.brief && <span className="study-taskbar-brief">{run.brief}</span>}
       </div>
 
       {presetFailed && (
         <div className="study-preset-failed">
-          学习素材加载失败——请手动在上方上传参考图（场景 {run.scene_id}）。
+          Study asset failed to load — please upload the reference image manually above (scene {run.scene_id}).
         </div>
       )}
 
@@ -86,10 +86,10 @@ export function LearningShell({ run, index, total, intentCode, userId, onSession
           {finishing ? (
             <span className="inline-flex items-center gap-2">
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-              正在整理你的偏好记忆…（约 30–60 秒）
+              Consolidating your preference memory… (about 30–60s)
             </span>
           ) : (
-            '完成本学习会话，进入下一步 →'
+            'Finish this learning session and continue →'
           )}
         </button>
       </div>

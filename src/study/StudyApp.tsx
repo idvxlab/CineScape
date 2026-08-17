@@ -43,14 +43,14 @@ export function StudyApp({ participantCode }: StudyAppProps) {
   }, [refreshPlan])
 
   if (loading && !plan) {
-    return <div className="study-loading"><span className="h-5 w-5 animate-spin rounded-full border-2 border-brand-soft border-t-brand" />正在加载评测任务…</div>
+    return <div className="study-loading"><span className="h-5 w-5 animate-spin rounded-full border-2 border-brand-soft border-t-brand" />Loading study tasks…</div>
   }
 
   if (error && !plan) {
     return (
       <div className="study-header-card">
         <div className="study-error">{error}</div>
-        <button className="btn" onClick={() => void loadPlan(participantCode)}>重试</button>
+        <button className="btn" onClick={() => void loadPlan(participantCode)}>Retry</button>
       </div>
     )
   }
@@ -68,10 +68,10 @@ export function StudyApp({ participantCode }: StudyAppProps) {
 
   const progressLabel =
     currentIndex >= 0 && currentIndex < plan.learning.length
-      ? `学习 ${currentIndex + 1}/${plan.learning.length}`
+      ? `Learning ${currentIndex + 1}/${plan.learning.length}`
       : currentIndex >= 0
-        ? `评测 ${currentIndex - plan.learning.length + 1}/${plan.heldout.length}`
-        : '任务'
+        ? `Evaluation ${currentIndex - plan.learning.length + 1}/${plan.heldout.length}`
+        : 'Task'
 
   const handleLearningDone = () => {
     // The session was created under the participant user_id; the backend registers
@@ -87,17 +87,17 @@ export function StudyApp({ participantCode }: StudyAppProps) {
         <div className="flex items-center gap-3">
           <div className="grid h-9 w-9 place-items-center rounded-lg bg-brand text-white">🧪</div>
           <div>
-            <h1 className="text-[17px] font-bold">纵向用户评测</h1>
+            <h1 className="text-[17px] font-bold">Longitudinal User Study</h1>
             <p className="text-xs text-gray-400">
               {participant.participant_code} ·{' '}
               {participant.literacy === 'novice'
-                ? '日常用户'
+                ? 'Everyday user'
                 : participant.literacy === 'intermediate'
-                  ? '进阶用户'
+                  ? 'Experienced user'
                   : participant.literacy === 'expert'
-                    ? '专业用户'
+                    ? 'Professional'
                     : participant.literacy}{' '}
-              · 意图 {participant.intent_code}
+              · Intent {participant.intent_code}
             </p>
           </div>
         </div>
@@ -109,7 +109,7 @@ export function StudyApp({ participantCode }: StudyAppProps) {
             <button
               key={`l${run.run_index}`}
               className={`study-progress-seg ${isRunDone(run) ? 'done' : ''} ${currentIndex === i ? 'current' : ''}`}
-              title={`学习会话 ${i + 1}${run.session_id ? '（已完成）' : ''}`}
+              title={`Learning session ${i + 1}${run.session_id ? ' (done)' : ''}`}
               onClick={() => setCurrentIndex(i)}
             />
           ))}
@@ -117,13 +117,13 @@ export function StudyApp({ participantCode }: StudyAppProps) {
             <button
               key={`h${studyCase.id}`}
               className={`study-progress-seg ${isCaseDone(studyCase) ? 'done' : ''} ${currentIndex === plan.learning.length + i ? 'current' : ''}`}
-              title={`评测 case ${i + 1}${studyCase.status === 'done' ? '（已完成）' : ''}`}
+              title={`Evaluation case ${i + 1}${studyCase.status === 'done' ? ' (done)' : ''}`}
               onClick={() => setCurrentIndex(plan.learning.length + i)}
             />
           ))}
         </div>
         <div className="study-progress-label">
-          {progressLabel} · 已完成 {doneCount}/{total}
+          {progressLabel} · {doneCount}/{total} done
         </div>
       </div>
       {/* Keep every visited task MOUNTED (hidden when not current) instead of
@@ -169,8 +169,8 @@ export function StudyApp({ participantCode }: StudyAppProps) {
 
       {currentIndex < 0 && (
         <div className="study-done-panel">
-          <h2>✓ 全部任务完成</h2>
-          <p>感谢参与本次纵向评测！请通知实验员进行访谈。</p>
+          <h2>✓ All tasks complete</h2>
+          <p>Thank you for participating! Please notify the experimenter for the interview.</p>
         </div>
       )}
     </div>

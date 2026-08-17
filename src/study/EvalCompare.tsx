@@ -8,7 +8,7 @@ import { RatingForm } from './RatingForm'
 // which condition; the frontend never learns it), a three-way preference pick, the
 // 6-item Likert rating form, and an optional collapsible shot-script view (ten
 // parameters per shot). Video rendering is asynchronous: while either video_url is
-// null we show a "渲染中…" placeholder and poll the plan every 15s; the submit button
+// null we show a "Rendering…" placeholder and poll the plan every 15s; the submit button
 // only enables once both videos are ready and all 6 ratings are in.
 
 const POLL_INTERVAL_MS = 15_000
@@ -23,16 +23,16 @@ function totalDuration(shots: SchemeShot[]): number {
 
 /** The ten shot parameters (ADR-0006), displayed in the script view. */
 const SHOT_FIELDS: { key: keyof SchemeShot; label: string }[] = [
-  { key: 'shot_size', label: '景别' },
-  { key: 'composition', label: '构图' },
-  { key: 'angle', label: '角度' },
-  { key: 'movement', label: '运镜' },
-  { key: 'focal_length', label: '焦距' },
-  { key: 'depth_of_field', label: '景深' },
-  { key: 'lighting', label: '光影' },
-  { key: 'color_tone', label: '色彩' },
-  { key: 'rhythm', label: '节奏' },
-  { key: 'duration', label: '时长' },
+  { key: 'shot_size', label: 'Shot size' },
+  { key: 'composition', label: 'Composition' },
+  { key: 'angle', label: 'Angle' },
+  { key: 'movement', label: 'Movement' },
+  { key: 'focal_length', label: 'Focal length' },
+  { key: 'depth_of_field', label: 'Depth of field' },
+  { key: 'lighting', label: 'Lighting' },
+  { key: 'color_tone', label: 'Color tone' },
+  { key: 'rhythm', label: 'Rhythm' },
+  { key: 'duration', label: 'Duration' },
 ]
 
 const RATING_KEYS: RatingKey[] = ['preference_fit', 'intent_fidelity', 'control', 'probe_burden', 'trust', 'authorship']
@@ -95,8 +95,8 @@ export function EvalCompare({ studyCase, index, total, intentCode, submitting, o
   return (
     <div className="study-shell">
       <div className="study-taskbar">
-        <span className="study-taskbar-title">评测 case {index}/{total}</span>
-        <span className="study-taskbar-scene">场景 {studyCase.scene_id} · 意图 {intentCode}</span>
+        <span className="study-taskbar-title">Evaluation case {index}/{total}</span>
+        <span className="study-taskbar-scene">Scene {studyCase.scene_id} · Intent {intentCode}</span>
       </div>
 
       {/* Internal scroll region: the comparison content (videos + ratings) scrolls
@@ -104,9 +104,9 @@ export function EvalCompare({ studyCase, index, total, intentCode, submitting, o
       <div className="study-scroll">
         <div className="card p-4">
           <div className="eval-top">
-            {referenceImage && <img className="eval-reference" src={referenceImage} alt="参考画面" />}
+            {referenceImage && <img className="eval-reference" src={referenceImage} alt="Reference" />}
             <div className="eval-brief">
-              <strong>创作意图：</strong>
+              <strong>Creative intent:</strong>
               <p>{studyCase.brief || '—'}</p>
             </div>
           </div>
@@ -114,7 +114,7 @@ export function EvalCompare({ studyCase, index, total, intentCode, submitting, o
           {!bothReady && (
             <div className="eval-rendering-note">
               <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-brand-soft border-t-brand" />
-              视频渲染中（每镜关键帧 + 合成约 10–20 分钟），页面将每 15 秒自动刷新…可先休息片刻
+              Videos are rendering (keyframes + composition, about 10–20 min per branch) — this page auto-refreshes every 15s. Feel free to take a break.
             </div>
           )}
 
@@ -125,7 +125,7 @@ export function EvalCompare({ studyCase, index, total, intentCode, submitting, o
           </div>
 
           <details className="shots-detail">
-            <summary>查看脚本（两方案的镜头参数）</summary>
+            <summary>View scripts (shot parameters of both branches)</summary>
             <div className="eval-scripts">
               {[left, right].map((side) => (
                 <ScriptCard key={side.label} side={side} />
@@ -134,13 +134,13 @@ export function EvalCompare({ studyCase, index, total, intentCode, submitting, o
           </details>
 
           <div className="eval-choice">
-            <h3>你更喜欢哪个方案？</h3>
+            <h3>Which branch do you prefer?</h3>
             <div className="eval-preference">
               {(
                 [
-                  { value: 'left', label: 'X（左）' },
-                  { value: 'right', label: 'Y（右）' },
-                  { value: 'tie', label: '都差不多' },
+                  { value: 'left', label: 'X (left)' },
+                  { value: 'right', label: 'Y (right)' },
+                  { value: 'tie', label: 'About the same' },
                 ] as const
               ).map((opt) => (
                 <label key={opt.value} className={`option-chip ${preference === opt.value ? 'selected' : ''}`}>
@@ -162,11 +162,11 @@ export function EvalCompare({ studyCase, index, total, intentCode, submitting, o
 
           <div className="eval-actions">
             <button className="btn btn-primary w-full py-2.5 disabled:opacity-50" disabled={!canSubmit} onClick={handleSubmit}>
-              {submitting ? '提交中…' : hasSubmitted ? '已提交' : '提交偏好与评分'}
+              {submitting ? 'Submitting…' : hasSubmitted ? 'Submitted' : 'Submit preference & ratings'}
             </button>
             {!canSubmit && !hasSubmitted && (
               <p className="eval-submit-hint">
-                {!bothReady ? '等待两个视频渲染完成…' : preference === null ? '请先选择偏好（X / Y / 都差不多）' : !allRated ? '请完成全部 6 项评分' : ''}
+                {!bothReady ? 'Waiting for both videos to render…' : preference === null ? 'Please choose a preference (X / Y / about the same)' : !allRated ? 'Please complete all 6 ratings' : ''}
               </p>
             )}
           </div>
@@ -186,7 +186,7 @@ function VideoCard({ side }: { side: StudyBranch }) {
       ) : (
         <div className="eval-video-placeholder">
           <span className="h-5 w-5 animate-spin rounded-full border-2 border-brand-soft border-t-brand" />
-          渲染中…
+          Rendering…
         </div>
       )}
     </div>
@@ -198,7 +198,7 @@ function ScriptCard({ side }: { side: StudyBranch }) {
   return (
     <div className="eval-script">
       <h4>
-        方案 {side.label}
+        Branch {side.label}
         {scheme?.strategy ? ` · ${scheme.strategy}` : ''}
       </h4>
       {scheme?.mechanism && <p className="mechanism">{scheme.mechanism}</p>}
@@ -221,11 +221,11 @@ function ScriptCard({ side }: { side: StudyBranch }) {
           ))}
         </ol>
       ) : (
-        <p className="mechanism">方案脚本尚未就绪。</p>
+        <p className="mechanism">Branch script not ready yet.</p>
       )}
       {scheme?.shots?.length ? (
         <p className="mechanism total">
-          总时长 ~{totalDuration(scheme.shots)}s{scheme.overall_rationale ? ` · ${scheme.overall_rationale}` : ''}
+          Total duration ~{totalDuration(scheme.shots)}s{scheme.overall_rationale ? ` · ${scheme.overall_rationale}` : ''}
         </p>
       ) : null}
     </div>

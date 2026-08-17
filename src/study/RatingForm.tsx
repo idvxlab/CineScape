@@ -12,12 +12,12 @@ interface RatingItem {
 }
 
 const RATING_ITEMS: RatingItem[] = [
-  { key: 'preference_fit', label: '整体偏好契合度', low: '完全不喜欢', high: '非常喜欢' },
-  { key: 'intent_fidelity', label: '意图忠实度', low: '完全偏离意图', high: '精准还原意图' },
-  { key: 'control', label: '掌控感', low: '完全失控', high: '完全掌控' },
-  { key: 'probe_burden', label: '提问负担', low: '负担极重', high: '毫无负担' },
-  { key: 'trust', label: '信任度', low: '完全不信任', high: '非常信任' },
-  { key: 'authorship', label: '作者归属感', low: '完全不像我的作品', high: '完全是我想拍的' },
+  { key: 'preference_fit', label: 'Overall preference fit', low: 'Strongly dislike', high: 'Strongly like' },
+  { key: 'intent_fidelity', label: 'Intent fidelity', low: 'Completely off intent', high: 'Perfectly matches intent' },
+  { key: 'control', label: 'Sense of control', low: 'Completely lost', high: 'Fully in control' },
+  { key: 'probe_burden', label: 'Probe burden', low: 'Extremely burdensome', high: 'No burden at all' },
+  { key: 'trust', label: 'Trust', low: 'Do not trust at all', high: 'Trust completely' },
+  { key: 'authorship', label: 'Sense of authorship', low: 'Not my work at all', high: 'Exactly what I would make' },
 ]
 
 export interface RatingFormProps {
@@ -47,7 +47,7 @@ export function RatingForm({ initial, onChange, onCommentChange, disabled }: Rat
           <div className="rating-header">
             <span className="rating-label">{item.label}</span>
             <span className={`rating-value ${ratings[item.key] ? 'text-brand' : 'text-gray-400'}`}>
-              {ratings[item.key] ? `${ratings[item.key]}/5` : '未评分'}
+              {ratings[item.key] ? `${ratings[item.key]}/5` : 'Not rated'}
             </span>
           </div>
           <div className="rating-scale">
@@ -70,11 +70,11 @@ export function RatingForm({ initial, onChange, onCommentChange, disabled }: Rat
         </div>
       ))}
       <label className="rating-comment">
-        <span>评语（可选）</span>
+        <span>Comment (optional)</span>
         <textarea
           value={comment}
           disabled={disabled}
-          placeholder="补充你对这两个方案的看法…"
+          placeholder="Anything else about these two branches…"
           onChange={(e) => {
             setComment(e.target.value)
             onCommentChange?.(e.target.value)

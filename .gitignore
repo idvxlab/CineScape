@@ -38,3 +38,7 @@ backend/app/types/
 .ruff_cache/
 *.log
 backend/uploads/
+
+# Eval artifacts (large, regenerable) & secrets
+backend/eval-results/
+backend/.env.bak.*

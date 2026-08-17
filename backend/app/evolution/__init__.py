@@ -1,13 +1,14 @@
 """Evolution package — double-loop self-evolution (ADR-0017).
 
 Outer loop over the system's *beliefs about the user*, modeled as preference
-questions ``q = (c, d, a, b)`` that ordinary behaviour proposes and explicit
-probe answers settle. Status is the prevailing (mode) answer; corroborated
-in-scope questions are enacted into a session-level workflow skill.
+questions ``q = (c, d, a, b)`` that a first behavioural occurrence proposes
+and later independent behavioural recurrences or explicit probes vote on.
+Status is the prevailing (mode) answer; corroborated in-scope questions are
+enacted into a session-level workflow skill.
 
 - ``trace``     — append-only interaction event capture
 - ``questions`` — preference-question store + prevailing-answer state machine
-- ``reflect``   — trace → discovered questions (proposes, never settles)
+- ``reflect``   — trace → new questions or behavioural recurrence votes
 - ``probes``    — fair verification / skill-activation probes
 - ``skills``    — Enact(C_t) view + consumption helpers
 """
@@ -22,7 +23,10 @@ from app.evolution.probes import (
     build_activation_probe,
     build_verification_probe,
     recall_questions,
+    select_and_advance_probe,
     select_probe,
+    get_probe_state,
+    advance_probe_state,
 )
 from app.evolution.questions import (
     compute_status,
@@ -34,8 +38,8 @@ from app.evolution.questions import (
 from app.evolution.reflect import build_evidence_digest, reflect_session
 from app.evolution.skills import (
     enact,
-    naive_style_note,
     evaluate_skill_adoption,
+    naive_style_note,
     preferred_values,
     reorder_directions,
     skill_prompt_section,
@@ -55,9 +59,10 @@ __all__ = [
     "build_evidence_digest",
     "recall_questions",
     "select_probe",
+    "select_and_advance_probe",
+    "get_probe_state",
+    "advance_probe_state",
     "build_verification_probe",
-    "build_activation_probe",
-    "enact",
     "naive_style_note",
     "reorder_directions",
     "skill_prompt_section",

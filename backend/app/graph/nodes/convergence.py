@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 
-from app.evolution import recall_questions, select_probe
+from app.evolution import recall_questions, select_and_advance_probe
 from app.graph.state import SessionState
 from app.graph.utils import parse_llm_json
 from app.llm import PromptBuilder, get_llm_client
@@ -109,12 +109,18 @@ async def convergence_node(state: SessionState) -> dict:
     #   1) tags 已定,不再依赖 align 早期空的临时维度码 → 召回可靠;
     #   2) convergence 是收敛必经节点,快速收敛(单轮 align)的会话也能被探针命中。
     # 匿名/非 full/库空时零影响,失败绝不阻塞收敛。
-    if state.user_id != "anonymous" and getattr(state, "memory_mode", "full") == "full" \
-            and not state.probed:
+    if (
+        state.user_id != "anonymous"
+        and getattr(state, "memory_mode", "full") == "full"
+        and not state.probed
+    ):
         try:
             recalled = await recall_questions(state.user_id, valid_tags)
             swap = sum(len(q.get("answers") or []) for q in recalled) % 2 == 1
-            probe = select_probe(recalled, already_probed=state.probed, swap=swap)
+            # ADR-0020 A+C:读/推进用户探针调度状态(验证通道保底 + 激活不重复轰炸)
+            probe = await select_and_advance_probe(
+                state.user_id, recalled, already_probed=state.probed, swap=swap
+            )
             if probe is not None:
                 updates["recalled_questions"] = recalled
                 updates["pending_widgets"] = [probe]  # confirm_gate 会抽取展示

@@ -20,8 +20,10 @@ directly.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
+import os
 import uuid
 
 from fastapi import APIRouter, HTTPException, Request
@@ -37,9 +39,11 @@ from app.evolution import (
     evaluate_skill_adoption,
     load_session_trace,
     preferred_values,
+    recall_questions,
     record_batch,
     record_event,
     reflect_session,
+    select_and_advance_probe,
 )
 from app.evolution.questions import (
     VALID_ANSWERS,
@@ -60,6 +64,11 @@ sessions_router = APIRouter()
 # Strong refs to background reflection tasks so the event loop doesn't GC them
 # mid-flight (asyncio only holds weak refs to tasks).
 _background_tasks: set = set()
+
+
+def _frozen_alignment_allowed(user_id: str) -> bool:
+    """Keep the evaluation checkpoint path impossible in normal deployments."""
+    return user_id.startswith("eval-") and os.environ.get("EVAL_ALLOW_FROZEN_ALIGNMENT") == "1"
 
 
 def _spawn_background(coro) -> None:
@@ -251,7 +260,9 @@ def _session_user_id(values: dict) -> str:
     return values.get("user_id") or "anonymous"
 
 
-async def _resume_state(graph, session_id: str, resume_value: dict, expected_types: tuple[str, ...]):
+async def _resume_state(
+    graph, session_id: str, resume_value: dict, expected_types: tuple[str, ...]
+):
     """Validate there is a matching pending interrupt, then resume; return the new state."""
     thread_id = _thread_id(session_id)
     try:
@@ -282,6 +293,7 @@ async def _resume(graph, session_id: str, resume_value: dict, expected_types: tu
 # the thinking trace (gray) while waiting.
 # ---------------------------------------------------------------------------
 
+
 def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
@@ -307,7 +319,11 @@ async def _stream_turn(session_id: str, runner) -> "StreamingResponse":
         finally:
             reasoning_stream_cb.reset(token)
 
-    return StreamingResponse(gen(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -328,11 +344,15 @@ async def create_session(request: Request):
 
     user_id = "anonymous"
     memory_mode = "full"
+    image_brief_override = ""
+    frozen_alignment_raw = ""
     if content_type.startswith("multipart/form-data"):
         form = await request.form()
         raw_intent = str(form.get("raw_intent") or "").strip()
         user_id = str(form.get("user_id") or "anonymous").strip() or "anonymous"
         memory_mode = str(form.get("memory_mode") or "full").strip() or "full"
+        image_brief_override = str(form.get("image_brief") or "").strip()
+        frozen_alignment_raw = str(form.get("frozen_alignment") or "").strip()
         # form() 产出 starlette UploadFile(非 fastapi 子类),按基类判断
         candidate = form.get("image")
         if isinstance(candidate, UploadFile) and candidate.filename:
@@ -353,6 +373,45 @@ async def create_session(request: Request):
             status_code=422,
             detail="请上传一张参考画面(multipart 的 image 字段):本系统为画面设计重拍摄方案",
         )
+    if image_brief_override and not user_id.startswith("eval-"):
+        raise HTTPException(
+            status_code=422,
+            detail="image_brief override is restricted to evaluation users",
+        )
+    if frozen_alignment_raw and not _frozen_alignment_allowed(user_id):
+        raise HTTPException(
+            status_code=422,
+            detail="frozen_alignment is disabled outside an authorized evaluation run",
+        )
+
+    frozen_alignment: dict | None = None
+    if frozen_alignment_raw:
+        try:
+            candidate = json.loads(frozen_alignment_raw)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail=f"invalid frozen_alignment JSON: {exc.msg}",
+            )
+        if not isinstance(candidate, dict):
+            raise HTTPException(status_code=422, detail="frozen_alignment must be an object")
+        frozen_brief = str(candidate.get("brief") or "").strip()
+        frozen_tags = candidate.get("tags")
+        frozen_raw_intent = str(candidate.get("raw_intent") or "").strip()
+        if (
+            not frozen_brief
+            or not isinstance(frozen_tags, list)
+            or not frozen_tags
+            or frozen_raw_intent != raw_intent
+        ):
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "frozen_alignment requires a non-empty brief/tags and "
+                    "the same raw_intent as the new branch"
+                ),
+            )
+        frozen_alignment = candidate
 
     session_id = str(uuid.uuid4())
     graph = request.app.state.graph
@@ -366,25 +425,128 @@ async def create_session(request: Request):
         raise HTTPException(status_code=422, detail=str(exc))
 
     async def runner():
-        image_brief = await get_llm_client().describe_image(str(local_path))
+        frozen_image_brief = str((frozen_alignment or {}).get("image_brief") or "").strip()
+        if frozen_alignment and image_brief_override and frozen_image_brief != image_brief_override:
+            raise HTTPException(
+                status_code=422,
+                detail="frozen alignment image_brief does not match the supplied scene card",
+            )
+        image_brief = (
+            frozen_image_brief
+            or image_brief_override
+            or await get_llm_client().describe_image(str(local_path))
+        )
         logger.info(
-            "Session %s reference image saved (%s), brief=%s",
+            "Session %s reference image saved (%s), brief=%s source=%s",
             session_id[:8],
             reference_image,
             "yes" if image_brief else "degraded",
+            "frozen_eval_card" if image_brief_override else "vision_model",
         )
-        initial_state = SessionState(
-            raw_intent=raw_intent,
-            user_id=user_id,
-            memory_mode=memory_mode if memory_mode in ("full", "naive", "off") else "full",
-            reference_image=reference_image,
-            image_brief=image_brief,
-        ).model_dump()
+        normalized_mode = memory_mode if memory_mode in ("full", "naive", "off") else "full"
+        if frozen_alignment is None:
+            initial_state = SessionState(
+                raw_intent=raw_intent,
+                user_id=user_id,
+                memory_mode=normalized_mode,
+                reference_image=reference_image,
+                image_brief=image_brief,
+            ).model_dump()
+        else:
+            tags = [str(tag) for tag in frozen_alignment["tags"]]
+            recalled_questions: list[dict] = []
+            pending_widgets: list[dict] = []
+            if normalized_mode == "full":
+                try:
+                    recalled_questions = await recall_questions(user_id, tags)
+                    swap = (
+                        sum(len(question.get("answers") or []) for question in recalled_questions)
+                        % 2
+                        == 1
+                    )
+                    # ADR-0020 A+C:读/推进用户探针调度状态(验证保底 + 激活不重复)
+                    probe = await select_and_advance_probe(
+                        user_id,
+                        recalled_questions,
+                        already_probed=False,
+                        swap=swap,
+                    )
+                    if probe is not None:
+                        pending_widgets = [probe]
+                except Exception:
+                    logger.debug(
+                        "Frozen branch question recall failed; continuing without probe",
+                        exc_info=True,
+                    )
+            stable_alignment = {
+                key: frozen_alignment.get(key)
+                for key in (
+                    "source_session_id",
+                    "raw_intent",
+                    "image_brief",
+                    "dimensions",
+                    "key_dimensions",
+                    "brief",
+                    "tags",
+                    "reflection",
+                )
+            }
+            alignment_hash = hashlib.sha256(
+                json.dumps(
+                    stable_alignment,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest()
+            initial_state = SessionState(
+                raw_intent=raw_intent,
+                user_id=user_id,
+                memory_mode=normalized_mode,
+                reference_image=reference_image,
+                image_brief=image_brief,
+                dimensions=frozen_alignment.get("dimensions") or {},
+                key_dimensions=frozen_alignment.get("key_dimensions") or [],
+                brief=str(frozen_alignment["brief"]),
+                tags=tags,
+                reflection=str(frozen_alignment.get("reflection") or ""),
+                recalled_questions=recalled_questions,
+                pending_widgets=pending_widgets,
+                converged=True,
+                phase="confirm",
+            ).model_dump()
+            await record_event(
+                session_id,
+                "alignment_cloned",
+                {
+                    "source_session_id": frozen_alignment.get("source_session_id"),
+                    "alignment_hash": alignment_hash,
+                    "fields": [
+                        "raw_intent",
+                        "image_brief",
+                        "dimensions",
+                        "key_dimensions",
+                        "brief",
+                        "tags",
+                        "reflection",
+                    ],
+                },
+                user_id=user_id,
+            )
         return await _run_to_interrupt(graph, _thread_id(session_id), initial_state)
 
     await record_event(
-        session_id, "session_start",
-        {"raw_intent": raw_intent, "has_image": True}, user_id=user_id,
+        session_id,
+        "session_start",
+        {
+            "raw_intent": raw_intent,
+            "has_image": True,
+            "image_brief_source": ("frozen_eval_card" if image_brief_override else "vision_model"),
+            "alignment_source": (
+                "frozen_eval_branch" if frozen_alignment is not None else "live_alignment"
+            ),
+        },
+        user_id=user_id,
     )
     if request.query_params.get("stream") == "1":
         return await _stream_turn(session_id, runner)
@@ -409,21 +571,27 @@ async def respond_to_align(session_id: str, body: AlignRespondBody, request: Req
     for key, answer in (body.dim_widget_responses or {}).items():
         if key == "skill_activation" and isinstance(answer, str):
             await record_event(
-                session_id, "skill_activation",
-                {"answer": answer,
-                 "question_ids": (activation_widget or {}).get("question_ids", [])},
+                session_id,
+                "skill_activation",
+                {
+                    "answer": answer,
+                    "question_ids": (activation_widget or {}).get("question_ids", []),
+                },
                 user_id=user_id,
             )
         elif key in recalled_ids and isinstance(answer, str) and answer in VALID_ANSWERS:
             await record_event(
-                session_id, "probe_response",
-                {"question_id": key, "answer": answer}, user_id=user_id,
+                session_id,
+                "probe_response",
+                {"question_id": key, "answer": answer},
+                user_id=user_id,
             )
         else:
             dim_answers[key] = answer
 
     await record_event(
-        session_id, "align_answer",
+        session_id,
+        "align_answer",
         {"dim_widget_responses": dim_answers, "free_text": body.free_text},
         user_id=user_id,
     )
@@ -434,7 +602,10 @@ async def respond_to_align(session_id: str, body: AlignRespondBody, request: Req
         "free_text": body.free_text,
     }
     if request.query_params.get("stream") == "1":
-        return await _stream_turn(session_id, lambda: _resume_state(graph, session_id, resume_value, ("widgets",)))
+        return await _stream_turn(
+            session_id,
+            lambda: _resume_state(graph, session_id, resume_value, ("widgets",)),
+        )
     return await _resume(graph, session_id, resume_value, expected_types=("widgets",))
 
 
@@ -447,7 +618,8 @@ async def confirm_alignment(session_id: str, body: ConfirmBody, request: Request
         # confirm 门控上展示的探针:先把回答落 trace(与 respond 路径同构),再 finalize
         if body.probe_response:
             await _record_confirm_probe(session_id, values, body.probe_response)
-        # 探针裁决延到此处:tags 已确认,做 applicability 二次校验后才落账/激活(ADR-0017)。
+        # 显式 probe 回答延到此处落账；它是与跨 session 行为复现并列的投票来源。
+        # tags 已确认，因此先做 applicability 二次校验，再决定是否激活 skill。
         active_skill = await _finalize_probe(session_id, values)
 
     resume_value = {
@@ -457,7 +629,10 @@ async def confirm_alignment(session_id: str, body: ConfirmBody, request: Request
         "active_skill": active_skill,
     }
     if request.query_params.get("stream") == "1":
-        return await _stream_turn(session_id, lambda: _resume_state(graph, session_id, resume_value, ("confirm",)))
+        return await _stream_turn(
+            session_id,
+            lambda: _resume_state(graph, session_id, resume_value, ("confirm",)),
+        )
     return await _resume(graph, session_id, resume_value, expected_types=("confirm",))
 
 
@@ -471,16 +646,13 @@ async def _record_confirm_probe(session_id: str, values: dict, pr: dict) -> None
     activation = pr.get("skill_activation")
     if isinstance(activation, str):
         probe_widget = next(
-            (
-                w for w in values.get("pending_widgets") or []
-                if w.get("kind") == "skill_activation"
-            ),
+            (w for w in values.get("pending_widgets") or [] if w.get("kind") == "skill_activation"),
             None,
         )
         await record_event(
-            session_id, "skill_activation",
-            {"answer": activation,
-             "question_ids": (probe_widget or {}).get("question_ids", [])},
+            session_id,
+            "skill_activation",
+            {"answer": activation, "question_ids": (probe_widget or {}).get("question_ids", [])},
             user_id=user_id,
         )
         return
@@ -489,8 +661,10 @@ async def _record_confirm_probe(session_id: str, values: dict, pr: dict) -> None
     recalled_ids = {q["question_id"] for q in values.get("recalled_questions", [])}
     if qid in recalled_ids and isinstance(answer, str) and answer in VALID_ANSWERS:
         await record_event(
-            session_id, "probe_response",
-            {"question_id": qid, "answer": answer}, user_id=user_id,
+            session_id,
+            "probe_response",
+            {"question_id": qid, "answer": answer},
+            user_id=user_id,
         )
 
 
@@ -532,9 +706,13 @@ async def _finalize_probe(session_id: str, values: dict) -> dict | None:
                 await record_answer(session_id, qid, verification.get("answer"))
             else:
                 await record_event(
-                    session_id, "skill_outcome",
-                    {"stage": "confirm", "question_id": qid,
-                     "result": "inapplicable_after_confirm"},
+                    session_id,
+                    "skill_outcome",
+                    {
+                        "stage": "confirm",
+                        "question_id": qid,
+                        "result": "inapplicable_after_confirm",
+                    },
                     user_id=user_id,
                 )
         if activation == ACT_FORGET:
@@ -557,15 +735,18 @@ async def _finalize_probe(session_id: str, values: dict) -> dict | None:
             skill = enact(corroborated, exemplar_records=exemplars)
             if skill is not None:
                 await record_event(
-                    session_id, "skill_outcome",
-                    {"stage": "activate", "result": "consumed",
-                     "source_question_ids": skill.get("source_question_ids", [])},
+                    session_id,
+                    "skill_outcome",
+                    {
+                        "stage": "activate",
+                        "result": "consumed",
+                        "source_question_ids": skill.get("source_question_ids", []),
+                    },
                     user_id=user_id,
                 )
             return skill
     except Exception:
-        logger.warning("Probe finalization failed for %s (non-critical)", session_id,
-                       exc_info=True)
+        logger.warning("Probe finalization failed for %s (non-critical)", session_id, exc_info=True)
     return None
 
 
@@ -587,13 +768,19 @@ async def select_scheme(session_id: str, body: SelectBody, request: Request):
     values = await _get_values(graph, session_id)
     user_id = _session_user_id(values)
 
-    # 比较证据(ADR-0017):三选一 = 机制层的偏好表态,每会话必产一条
+    # 比较证据(ADR-0017):仅实际展示的多方案选择才是机制层偏好表态
     candidates = values.get("candidates", [])
-    rejected = [c.get("scheme_id") for c in candidates if c.get("scheme_id") != body.scheme_id]
+    presented = list(dict.fromkeys(c.get("scheme_id") for c in candidates if c.get("scheme_id")))
+    rejected = [scheme_id for scheme_id in presented if scheme_id != body.scheme_id]
     await record_event(
-        session_id, "candidate_select",
+        session_id,
+        "candidate_select",
         {
             "selected": body.scheme_id,
+            # A strategy direction is not necessarily a candidate the user
+            # actually saw: a branch may fail generation. Comparative evidence
+            # must therefore be bounded by the presented candidate set.
+            "presented": presented,
             "rejected": rejected,
             "action": body.action,
             "directions": values.get("directions", []),
@@ -617,25 +804,40 @@ async def select_scheme(session_id: str, body: SelectBody, request: Request):
     # 采纳即会话结束:记 adopt 证据、skill 采纳结果,并异步触发反思(非阻塞)
     if body.action == "writeback":
         await record_event(
-            session_id, "adopt",
-            {"scheme_id": body.scheme_id, "tags": values.get("tags", []),
-             "brief": values.get("brief", "")},
+            session_id,
+            "adopt",
+            {
+                "scheme_id": body.scheme_id,
+                "tags": values.get("tags", []),
+                "brief": values.get("brief", ""),
+            },
             user_id=user_id,
         )
         active_skill = values.get("active_skill")
         if active_skill:
-            selected = next(
-                (c for c in candidates if c.get("scheme_id") == body.scheme_id), None
-            )
+            selected = next((c for c in candidates if c.get("scheme_id") == body.scheme_id), None)
             outcomes = evaluate_skill_adoption(active_skill, (selected or {}).get("shots", []))
             await record_event(
-                session_id, "skill_outcome",
-                {"stage": "adopt", **outcomes,
-                 "source_question_ids": active_skill.get("source_question_ids", [])},
+                session_id,
+                "skill_outcome",
+                {
+                    "stage": "adopt",
+                    **outcomes,
+                    "source_question_ids": active_skill.get("source_question_ids", []),
+                },
                 user_id=user_id,
             )
         if user_id != "anonymous" and values.get("memory_mode", "full") == "full":
-            _spawn_background(reflect_session(session_id))
+            # Evaluation can request a synchronous outer-loop update so the
+            # next simulated session observes exactly this completed trace.
+            # Production remains non-blocking by default.
+            if request.query_params.get("await_reflection") == "1":
+                # The experiment must fail/retry this required session if its
+                # memory consolidation failed; otherwise session t+1 would not
+                # observe the evidence produced by session t.
+                await reflect_session(session_id, raise_errors=True)
+            else:
+                _spawn_background(reflect_session(session_id))
 
     return result
 
@@ -645,8 +847,11 @@ async def edit_shot(session_id: str, body: EditBody, request: Request):
     graph = request.app.state.graph
     values = await _get_values(graph, session_id)
     await _record_patch_events(
-        session_id, values, [op.model_dump() for op in body.patch],
-        free_text=body.free_text, scheme_id=values.get("selected_scheme_id"),
+        session_id,
+        values,
+        [op.model_dump() for op in body.patch],
+        free_text=body.free_text,
+        scheme_id=values.get("selected_scheme_id"),
     )
 
     return await _resume(
@@ -709,7 +914,8 @@ async def _record_patch_events(
     if not ops:
         return
     await record_event(
-        session_id, "edit_patch",
+        session_id,
+        "edit_patch",
         {"scheme_id": target_id, "ops": ops, "free_text": free_text},
         user_id=user_id,
     )
@@ -724,7 +930,8 @@ async def _record_patch_events(
         ]
         if overridden:
             await record_event(
-                session_id, "skill_outcome",
+                session_id,
+                "skill_outcome",
                 {"stage": "edit", "result": "user_overridden", "fields": overridden},
                 user_id=user_id,
             )
@@ -767,21 +974,43 @@ async def render_keyframes(session_id: str, body: RenderBody, request: Request):
     # ADR-0017: 该路径绕过 graph 的 edit interrupt,须在此补录参数证据,否则外环失明。
     if body.patch:
         await _record_patch_events(
-            session_id, values, [op.model_dump() for op in body.patch],
+            session_id,
+            values,
+            [op.model_dump() for op in body.patch],
             scheme_id=body.scheme_id,
         )
         from app.graph.nodes.edit import _apply_patch
+
         scheme, _rejected = _apply_patch(scheme, [op.model_dump() for op in body.patch])
 
-    await record_event(
-        session_id, "render_request",
-        {"scheme_id": body.scheme_id, "shot_order": body.shot_order},
-        user_id=_session_user_id(values),
-    )
     updated = await render_scheme(session_id, scheme, base_path, only_order=body.shot_order)
-    # merge all on-disk frames (this render + any previously rendered shots) so the response is complete
+    # Merge this render with any previously rendered shots from disk.
     updated = hydrate_frames(session_id, [updated])[0]
     rendered = sum(1 for s in updated.get("shots", []) if s.get("frame_image"))
+    requested_shots = [
+        shot
+        for shot in updated.get("shots", [])
+        if body.shot_order is None or shot.get("order") == body.shot_order
+    ]
+    preview_succeeded = bool(requested_shots) and all(
+        shot.get("frame_image") for shot in requested_shots
+    )
+    if preview_succeeded:
+        # A perceptual verdict requires an observable preview, not merely an
+        # attempted tool call. Reflection consumes only successful renders.
+        await record_event(
+            session_id,
+            "render_request",
+            {"scheme_id": body.scheme_id, "shot_order": body.shot_order, "status": "succeeded"},
+            user_id=_session_user_id(values),
+        )
+    else:
+        await record_event(
+            session_id,
+            "frontend_event",
+            {"type": "render_failed", "scheme_id": body.scheme_id, "shot_order": body.shot_order},
+            user_id=_session_user_id(values),
+        )
 
     # 不写图状态(aupdate_state 会清掉挂起的 interrupt):
     # 渲染产物以 uploads/ 文件为事实存储,响应构建时 hydrate_frames 运行时合并
@@ -826,17 +1055,14 @@ async def animate_shots(session_id: str, body: RenderBody, request: Request):
     # ADR-0017: 同 /render,绕过 edit interrupt 的编辑在此补录参数证据。
     if body.patch:
         await _record_patch_events(
-            session_id, values, [op.model_dump() for op in body.patch],
+            session_id,
+            values,
+            [op.model_dump() for op in body.patch],
             scheme_id=body.scheme_id,
         )
         from app.graph.nodes.edit import _apply_patch
-        scheme, _rejected = _apply_patch(scheme, [op.model_dump() for op in body.patch])
 
-    await record_event(
-        session_id, "render_request",
-        {"scheme_id": body.scheme_id, "mode": "animate"},
-        user_id=_session_user_id(values),
-    )
+        scheme, _rejected = _apply_patch(scheme, [op.model_dump() for op in body.patch])
 
     # 关键帧是图生视频的首帧前置;按磁盘存在性回填,缺帧则拒绝
     scheme = hydrate_frames(session_id, [scheme])[0]
@@ -847,6 +1073,12 @@ async def animate_shots(session_id: str, body: RenderBody, request: Request):
         updated = await animate_scheme(session_id, scheme)
     except RenderError as exc:
         raise HTTPException(status_code=502, detail=f"视频合成失败: {exc}")
+    await record_event(
+        session_id,
+        "render_request",
+        {"scheme_id": body.scheme_id, "mode": "animate", "shot_order": None, "status": "succeeded"},
+        user_id=_session_user_id(values),
+    )
 
     scheme_video = updated.get("scheme_video")
     if not scheme_video:
@@ -928,6 +1160,7 @@ async def get_session(session_id: str, request: Request):
             "brief": values.get("brief"),
             "tags": values.get("tags", []),
             "reflection": values.get("reflection"),
+            "converged": values.get("converged", False),
             "selected_scheme_id": values.get("selected_scheme_id"),
         },
     }

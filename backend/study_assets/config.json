@@ -1,0 +1,156 @@
+{
+  "study_id": "skill-transfer-v6-15x3-10x20",
+  "protocol_version": "v6-no-seed-factor-three-judge-0to100",
+  "status": "package_ready_for_canary",
+  "claim": "A user-governed skill preserves recurring creator preferences in new cases without degrading the current brief or cinematic coherence.",
+  "conditions": [
+    "without_skill",
+    "with_skill"
+  ],
+  "cohort": {
+    "personas": 15,
+    "production_literacy": {
+      "novice": 5,
+      "intermediate": 5,
+      "expert": 5
+    },
+    "labels": {
+      "novice": "Everyday Creator without formal training",
+      "intermediate": "Experienced image-maker",
+      "expert": "Film professional"
+    },
+    "persona_ids": [
+      "sim04",
+      "sim05",
+      "sim06",
+      "sim07",
+      "sim09",
+      "sim16",
+      "sim17",
+      "sim18",
+      "sim20",
+      "sim25",
+      "sim26",
+      "sim27",
+      "sim28",
+      "sim29",
+      "sim30"
+    ]
+  },
+  "intents": [
+    {
+      "code": "1.5",
+      "name": "愉悦/欣喜",
+      "top_category": "情绪唤起"
+    },
+    {
+      "code": "3.4",
+      "name": "神秘/孤寂/疏离",
+      "top_category": "氛围/调性"
+    },
+    {
+      "code": "8.2",
+      "name": "好奇",
+      "top_category": "信息管理"
+    }
+  ],
+  "intent_briefs": {
+    "1.5": {
+      "novice": "我想让看到这一刻的人开心一点，像终于松了一口气，但别拍得太兴奋，也不要像广告。",
+      "intermediate": "让这一刻有一种紧张过去之后松下来、开心起来的感觉。情绪要真实，不要靠夸张色彩和很满的节奏硬推。",
+      "expert": "在关键动作完成的一刻形成短促的愉悦释放，区别于贯穿全场的欢快氛围；避免广告化高饱和与过度节奏强化。"
+    },
+    "3.4": {
+      "novice": "让他看起来更孤单一点，好像周围明明有很多东西，却没有一样和他有关系；但别拍成吓人的感觉。",
+      "intermediate": "让孤独感贯穿整个场景，不只是拍一个难过的表情。人物和周围空间要有距离，但不要变成恐怖或悬念。",
+      "expert": "建立持续的孤寂与疏离氛围，使人物与环境在空间关系上彼此隔绝；避免将其转译为瞬时悲伤或未来威胁式悬念。"
+    },
+    "8.2": {
+      "novice": "别一下告诉我之前发生了什么，留一点看得见但不完整的痕迹，让人自己想弄明白。不是要吓人，也不是担心接下来出事。",
+      "intermediate": "把已经发生的事情隐藏一部分，只给观众几个可以继续追索的线索。重点是想知道过去发生了什么，而不是担心未来的危险。",
+      "expert": "通过部分遮蔽一条已经留下的痕迹来组织信息，让观众主动追索过去发生了什么；不要将其误写为面向未来威胁的悬念。"
+    }
+  },
+  "matrix": {
+    "learning_cases_per_intent": 10,
+    "heldout_cases_per_intent": 20,
+    "logical_sessions_per_persona": 150,
+    "logical_sessions_total": 2250,
+    "matched_pairs_per_persona": 60,
+    "matched_pairs_total": 900,
+    "experimental_seed_factor": false,
+    "internal_execution_nonce": "fixed only for reproducible scheduling; not an experimental factor"
+  },
+  "negative_controls": {
+    "open_persona_intent_cells": 9,
+    "persona_intent_cells": 45,
+    "open_cells_per_intent": 3,
+    "purpose": "Measure false preference detection and permit standard TN/FP counts."
+  },
+  "interaction_contract": {
+    "alignment_round_limit": 6,
+    "abc": "show A/B/C, select one, reject two",
+    "edit_round_limit": 2,
+    "revision_verdicts": [
+      "keep",
+      "revert",
+      "refine"
+    ],
+    "final_adoption_required": true,
+    "failed_attempts_enter_memory": false,
+    "attempt_limit": 3
+  },
+  "models": {
+    "simulation": {
+      "model": "deepseek-v4-flash",
+      "base_url": "https://api.deepseek.com",
+      "protocol": "OpenAI-compatible"
+    },
+    "judges": {
+      "models": [
+        "qwen3.6-plus",
+        "glm-5.1",
+        "kimi-k2.5"
+      ],
+      "base_url": "https://apicz.boyuerichdata.com/v1",
+      "protocol": "OpenAI-compatible",
+      "independent": true
+    }
+  },
+  "measurement": {
+    "history_similarity": "Each judge independently scores 0=no similarity and 100=maximum similarity.",
+    "binary_capture": "Each judge independently returns captured/not captured; final label is majority vote.",
+    "output_pair_categories": [
+      "skill_only_capture",
+      "both_capture",
+      "without_only_capture",
+      "neither_capture"
+    ],
+    "ledger_confusion_matrix": {
+      "TP": "stable persona-intent preference exists and the learned ledger matches it",
+      "FP": "persona-intent cell is intentionally open but the system corroborates an intent-scoped preference",
+      "FN": "stable persona-intent preference exists but no learned ledger item matches it",
+      "TN": "persona-intent cell is intentionally open and the system leaves it unresolved"
+    },
+    "quality_scales": {
+      "intent_fidelity": "0-100",
+      "craft_coherence": "0-100",
+      "direction_diversity": "0-100"
+    },
+    "aggregation": "Retain every judge value; report per-output judge mean/SD, per-persona condition means, and mean/SD across 15 persona values."
+  },
+  "stimulus_mode": {
+    "render_images": false,
+    "render_videos": false,
+    "vlm": false,
+    "semantic_input": "frozen scene_card",
+    "asset_role": "HTTP image carrier only in this text-only simulation",
+    "final_image_study_requirement": "Replace carrier assets with 30 distinct validated reference images before making a visual-input claim."
+  },
+  "pilot": {
+    "persona_id": "sim04",
+    "intent_code": "3.4",
+    "logical_sessions": 50,
+    "matched_pairs": 20
+  }
+}

@@ -3,14 +3,15 @@ version: "3.9"
 services:
   postgres:
     image: pgvector/pgvector:pg16
-    container_name: cinedesign-pg
+    container_name: cinescape-pg
     restart: unless-stopped
     environment:
       POSTGRES_DB: cinedesign
       POSTGRES_USER: cinedesign
       POSTGRES_PASSWORD: cinedesign_dev
     ports:
-      - "5432:5432"
+      # 本机 5432 被 other 项目占用、5433 被 cinedesign 使用,映射到 5434
+      - "5434:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
@@ -22,7 +23,7 @@ services:
 
   pgadmin:
     image: dpage/pgadmin4:latest
-    container_name: cinedesign-pgadmin
+    container_name: cinescape-pgadmin
     restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@cinedesign.dev

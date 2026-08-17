@@ -67,8 +67,8 @@ def test_reorder_never_drops_directions():
     ]
     skill = {"strategy": {"prefer_intent_codes": ["6.2"]}}
     out = reorder_directions(list(directions), skill)
-    assert out[0]["dominant_intents"] == ["6.2"]      # preferred leads
-    assert {d["id"] for d in out} == {"A", "B"}        # set invariant: nothing dropped
+    assert out[0]["dominant_intents"] == ["6.2"]  # preferred leads
+    assert {d["id"] for d in out} == {"A", "B"}  # set invariant: nothing dropped
 
 
 def test_reorder_no_skill_is_identity():
@@ -88,11 +88,48 @@ def test_verification_probe_swaps_options_but_keeps_answer_frame():
     assert swapped["options"][-1]["value"] == PROBE_OPEN
 
 
-def test_select_probe_prefers_activation_when_corroborated_exists():
+def test_select_probe_activates_on_odd_turn_when_corroborated_exists():
+    """A 交替轮换:奇数轮(probe_turn=1)激活优先。"""
     corrob = _q("q1", "6.2", "a", _agree(("s1", "a"), ("s2", "a")))
     observed = _q("q2", "6.2", "a", [], status="observed")
-    probe = select_probe([corrob, observed], already_probed=False)
+    probe = select_probe([corrob, observed], already_probed=False, probe_turn=1)
     assert probe["kind"] == "skill_activation"
+
+
+def test_select_probe_verifies_on_even_turn_even_with_corroborated():
+    """A 交替轮换:偶数轮(probe_turn=0)验证优先,即使有 corroborated 也不饿死验证。"""
+    corrob = _q("q1", "6.2", "a", _agree(("s1", "a"), ("s2", "a")))
+    observed = _q("q2", "6.2", "a", [], status="observed")
+    probe = select_probe([corrob, observed], already_probed=False, probe_turn=0)
+    assert probe["kind"] == "preference_probe"
+    assert probe["question_id"] == "q2"
+
+
+def test_select_probe_activation_suppressed_when_fingerprint_unchanged():
+    """C 事件驱动:指纹未变(同一 corroborated 集合)时,奇数轮也不再发激活。"""
+    corrob = _q("q1", "6.2", "a", _agree(("s1", "a"), ("s2", "a")))
+    fp = "q1"
+    probe = select_probe(
+        [corrob],
+        already_probed=False,
+        probe_turn=1,
+        last_activation_fingerprint=fp,
+    )
+    assert probe is None  # 无验证候选、激活已被问过 → 无探针
+
+
+def test_select_probe_activation_fires_when_fingerprint_changed():
+    """C 事件驱动:指纹变化(新确证 q2 加入)时,奇数轮发激活。"""
+    corrob1 = _q("q1", "6.2", "a", _agree(("s1", "a"), ("s2", "a")))
+    corrob2 = _q("q2", "6.2", "b", _agree(("s1", "b"), ("s2", "b")))
+    probe = select_probe(
+        [corrob1, corrob2],
+        already_probed=False,
+        probe_turn=1,
+        last_activation_fingerprint="q1",
+    )
+    assert probe["kind"] == "skill_activation"
+    assert set(probe["question_ids"]) == {"q1", "q2"}
 
 
 def test_select_probe_verifies_when_none_corroborated():

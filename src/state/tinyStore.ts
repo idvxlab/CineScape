@@ -2,8 +2,9 @@ import { useSyncExternalStore } from 'react'
 
 // Minimal store (replaces zustand, avoids the dependency). Used only for a bit of frontend UI state.
 type SetState<T> = (partial: Partial<T> | ((s: T) => Partial<T>)) => void
+type GetState<T> = () => T
 
-export function create<T extends object>(init: (set: SetState<T>) => T) {
+export function create<T extends object>(init: (set: SetState<T>, get: GetState<T>) => T) {
   let state: T
   const listeners = new Set<() => void>()
   const set: SetState<T> = (partial) => {
@@ -11,7 +12,8 @@ export function create<T extends object>(init: (set: SetState<T>) => T) {
     state = { ...state, ...next }
     listeners.forEach((l) => l())
   }
-  state = init(set)
+  const get: GetState<T> = () => state
+  state = init(set, get)
   const subscribe = (l: () => void) => {
     listeners.add(l)
     return () => listeners.delete(l)

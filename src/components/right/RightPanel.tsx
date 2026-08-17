@@ -14,7 +14,9 @@ export function RightPanel() {
   }
 
   return (
-    <div className="flex min-h-0 flex-col gap-4">
+    // overflow-y-auto: when the cards exceed the panel height (e.g. the study view
+    // locks the page to the viewport), scroll inside instead of clipping.
+    <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
       <div className="card p-3">
         <div className="mb-2 text-sm font-semibold">
           Video Preview <span className="text-xs font-normal text-gray-400">(AI-generated)</span>

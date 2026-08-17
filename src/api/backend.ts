@@ -2,6 +2,7 @@
 // Wires the alignment loop: create session → align widgets → respond → … → confirm (brief + tags).
 
 const BASE = ((import.meta as any).env?.VITE_API_BASE as string) || 'http://localhost:8000/api'
+export const API_BASE = BASE
 const ORIGIN = BASE.replace(/\/api\/?$/, '') // http://localhost:8000 — for /api/uploads asset URLs
 const TIMEOUT_MS = 1_800_000 // 30 min — scheme reasoning + Dreamina render fan out over many slow calls
 
@@ -123,24 +124,26 @@ async function streamCall(path: string, init: RequestInit, onReasoning?: OnReaso
   }
 }
 
+export const USER_ID_KEY = 'cinescape_user_id'
+
 // Stable per-browser user id so the evolutionary memory (preference questions,
 // workflow skills) accrues across sessions. Anonymous sessions get no personalization.
 export function getUserId(): string {
-  const KEY = 'cinescape_user_id'
-  let id = localStorage.getItem(KEY)
+  let id = localStorage.getItem(USER_ID_KEY)
   if (!id) {
     id = `u-${crypto.randomUUID()}`
-    localStorage.setItem(KEY, id)
+    localStorage.setItem(USER_ID_KEY, id)
   }
   return id
 }
 
 // POST /api/sessions — multipart { raw_intent, image, user_id }. Streams reasoning, returns the first (align) turn.
-export function createSession(rawIntent: string, image: File, onReasoning?: OnReasoning): Promise<IntentTurn> {
+// userId overrides the browser-stable id — used by the ADR-0019 study so memory accrues per participant.
+export function createSession(rawIntent: string, image: File, onReasoning?: OnReasoning, userId?: string): Promise<IntentTurn> {
   const fd = new FormData()
   fd.append('raw_intent', rawIntent)
   fd.append('image', image)
-  fd.append('user_id', getUserId())
+  fd.append('user_id', userId ?? getUserId())
   return streamCall('/sessions', { method: 'POST', body: fd }, onReasoning)
 }
 

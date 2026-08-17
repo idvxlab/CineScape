@@ -1,0 +1,513 @@
+/* ADR-0019 longitudinal user study view — layered on the project's Tailwind
+   classes (.card/.btn/.btn-primary) with a few study-specific rules. */
+
+/* Lock the study page to the viewport height and scroll internally instead of
+   letting the body grow (otherwise the three-column editor overflows the viewport
+   with no visible scrollbar, clipping the panels, and content-driven height
+   changes around the threshold cause the layout to jitter). */
+.study-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* LearningShell / EvalCompare body: fill remaining height, scroll internally. */
+.study-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* One wrapper per task; the active one is shown (display:flex via inline style),
+   hidden ones stay mounted so their editor state survives switching back. */
+.study-shell-root {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.study-shell-content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.study-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.study-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid #e8ebee;
+  background: #fff;
+  padding: 0.75rem 1.25rem;
+  flex: none;
+}
+
+.study-header-card {
+  margin: 2rem auto;
+  max-width: 480px;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  background: #fff;
+  border: 1px solid #edf0f3;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
+}
+
+.study-error {
+  margin-bottom: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  color: #b91c1c;
+}
+
+.study-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 3rem 0;
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+/* ---- progress bar (learning 5 + heldout 6, clickable) ---- */
+.study-progress {
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid #edf0f3;
+  background: #fff;
+  flex: none;
+}
+
+.study-progress-track {
+  display: flex;
+  gap: 0.375rem;
+}
+
+.study-progress-seg {
+  flex: 1;
+  height: 0.5rem;
+  min-width: 1rem;
+  border-radius: 999px;
+  background: #e5e7eb;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.study-progress-seg:hover {
+  background: #d1d5db;
+}
+
+.study-progress-seg.done {
+  background: #34d399;
+}
+
+.study-progress-seg.current {
+  background: #2f5bff;
+  outline: 2px solid rgba(47, 91, 255, 0.3);
+  outline-offset: 1px;
+}
+
+.study-progress-label {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+/* ---- task context bar ---- */
+.study-taskbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 0.75rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid #edf0f3;
+  background: #fff;
+  flex: none;
+}
+
+.study-taskbar-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1f2430;
+}
+
+.study-taskbar-scene {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #2f5bff;
+}
+
+.study-taskbar-brief {
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+.study-task-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid #edf0f3;
+  background: #fff;
+  flex: none;
+}
+
+.study-preset-failed {
+  margin-top: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid #fde68a;
+  background: #fffbeb;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.78rem;
+  color: #92400e;
+}
+
+/* ---- EvalCompare ---- */
+.eval-top {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.eval-reference {
+  width: 220px;
+  flex: none;
+  aspect-ratio: 16 / 10;
+  border-radius: 0.5rem;
+  border: 1px solid #edf0f3;
+  object-fit: cover;
+}
+
+.eval-brief {
+  flex: 1;
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+.eval-brief p {
+  margin-top: 0.25rem;
+  line-height: 1.6;
+  color: #4b5563;
+}
+
+.eval-rendering-note {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e0e7ff;
+  background: #eef2ff;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.78rem;
+  color: #4338ca;
+}
+
+.eval-videos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.eval-video-card {
+  border-radius: 0.75rem;
+  border: 1px solid #edf0f3;
+  background: #000;
+  overflow: hidden;
+}
+
+.eval-video-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.375rem 0;
+  background: #fafbfc;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1f2430;
+  letter-spacing: 0.05em;
+}
+
+.eval-video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  background: #000;
+}
+
+.eval-video-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  aspect-ratio: 16 / 9;
+  background: #111827;
+  font-size: 0.85rem;
+  color: #9ca3af;
+}
+
+.shots-detail {
+  margin-top: 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  background: #fafbfc;
+}
+
+.shots-detail summary {
+  cursor: pointer;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.eval-scripts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  padding: 0.75rem;
+  border-top: 1px solid #eef1f4;
+}
+
+.eval-script h4 {
+  margin-bottom: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1f2430;
+}
+
+.eval-script .mechanism {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: #6b7280;
+}
+
+.eval-script .mechanism.total {
+  margin-top: 0.5rem;
+  color: #4b5563;
+}
+
+.shots-list {
+  margin-top: 0.5rem;
+  padding-left: 1.25rem;
+  font-size: 0.75rem;
+  color: #374151;
+}
+
+.shots-list li {
+  margin-bottom: 0.5rem;
+}
+
+.shots-list .shot-params {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  margin-top: 0.125rem;
+  color: #6b7280;
+}
+
+.shots-list .shot-rationale {
+  margin-top: 0.125rem;
+  color: #9ca3af;
+}
+
+.eval-choice {
+  margin-top: 1.25rem;
+}
+
+.eval-choice h3 {
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1f2430;
+}
+
+.eval-preference {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.option-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 999px;
+  border: 1px solid #e3e6ea;
+  background: #fff;
+  padding: 0.375rem 0.875rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #4b5563;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.option-chip:hover {
+  border-color: #2f5bff;
+  color: #2f5bff;
+}
+
+.option-chip.selected {
+  border-color: #2f5bff;
+  background: #eaf0ff;
+  color: #2f5bff;
+}
+
+.option-chip input {
+  accent-color: #2f5bff;
+}
+
+.eval-actions {
+  margin-top: 1.25rem;
+}
+
+.eval-submit-hint {
+  margin-top: 0.5rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+/* ---- RatingForm (6-item 5-point Likert) ---- */
+.rating-form {
+  margin-top: 1.25rem;
+  border-radius: 0.75rem;
+  border: 1px solid #edf0f3;
+  background: #fafbfc;
+  padding: 1rem;
+}
+
+.rating-item {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #eef1f4;
+}
+
+.rating-item:last-of-type {
+  border-bottom: none;
+}
+
+.rating-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.375rem;
+}
+
+.rating-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1f2430;
+}
+
+.rating-value {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.rating-scale {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.rating-end {
+  flex: 1;
+  font-size: 0.7rem;
+  color: #9ca3af;
+}
+
+.rating-end:last-child {
+  text-align: right;
+}
+
+.rating-option {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 1px solid #e3e6ea;
+  background: #fff;
+  font-size: 0.8rem;
+  color: #4b5563;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.rating-option:hover {
+  border-color: #2f5bff;
+}
+
+.rating-option.selected {
+  border-color: #2f5bff;
+  background: #2f5bff;
+  color: #fff;
+}
+
+.rating-option input {
+  display: none;
+}
+
+.rating-comment {
+  display: block;
+  margin-top: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1f2430;
+}
+
+.rating-comment textarea {
+  display: block;
+  width: 100%;
+  margin-top: 0.375rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e3e6ea;
+  background: #fff;
+  padding: 0.5rem 0.625rem;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: #1f2430;
+  outline: none;
+  resize: vertical;
+}
+
+.rating-comment textarea:focus {
+  border-color: #2f5bff;
+}
+
+/* ---- completion page ---- */
+.study-done-panel {
+  margin: 3rem auto;
+  max-width: 420px;
+  border-radius: 0.75rem;
+  border: 1px solid #edf0f3;
+  background: #fff;
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
+}
+
+.study-done-panel h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #059669;
+}
+
+.study-done-panel p {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #6b7280;
+}

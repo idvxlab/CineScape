@@ -266,9 +266,9 @@ async def create_participant(body: ParticipantBody):
     from app.study.protocol import ensure_study_assets
 
     if body.literacy not in ("novice", "intermediate", "expert"):
-        raise HTTPException(status_code=422, detail="literacy 必须为 novice/intermediate/expert")
+        raise HTTPException(status_code=422, detail="literacy must be novice/intermediate/expert")
     if body.intent_code not in ("1.5", "3.4", "8.2"):
-        raise HTTPException(status_code=422, detail="intent_code 必须为 1.5/3.4/8.2")
+        raise HTTPException(status_code=422, detail="intent_code must be 1.5/3.4/8.2")
 
     ensure_study_assets()
     existing = await study_store.get_participant_by_code(body.code)
@@ -291,7 +291,7 @@ async def get_participant(code: str):
 
     p = await study_store.get_participant_by_code(code)
     if not p:
-        raise HTTPException(status_code=404, detail=f"参与者 {code} 不存在")
+        raise HTTPException(status_code=404, detail=f"participant {code} not found")
     return p
 
 
@@ -302,7 +302,7 @@ async def get_plan(pid: str):
 
     participant = await study_store.get_participant(pid)
     if not participant:
-        raise HTTPException(status_code=404, detail="参与者不存在")
+        raise HTTPException(status_code=404, detail="participant not found")
 
     runs = await study_store.list_runs(pid)
     cases = await study_store.list_cases(pid)
@@ -376,7 +376,7 @@ async def finish_run(run_id: str):
 
     run = await study_store.get_run(run_id)
     if not run:
-        raise HTTPException(status_code=404, detail="run 不存在")
+        raise HTTPException(status_code=404, detail="run not found")
 
     if run["status"] == "done":
         # 幂等:已整理过直接返回摘要
@@ -386,7 +386,7 @@ async def finish_run(run_id: str):
     if not run.get("session_id"):
         raise HTTPException(
             status_code=409,
-            detail="该学习会话尚无 session;请先完成会话交互再点击完成",
+            detail="This learning session has no session yet; finish the session interaction first",
         )
 
     # 同步反射:整理本会话证据到偏好账本(失败则让前端看到错误,不静默丢记忆)
@@ -400,7 +400,7 @@ async def finish_run(run_id: str):
         )
         raise HTTPException(
             status_code=500,
-            detail="偏好记忆整理失败,请重试或联系实验员",
+            detail="Preference memory consolidation failed; please retry or contact the experimenter",
         )
 
     await study_store.set_run_done(run_id)
@@ -417,27 +417,27 @@ async def generate_pair(case_id: str, request: Request):
     graph = request.app.state.graph
     case = await study_store.get_case(case_id)
     if not case:
-        raise HTTPException(status_code=404, detail="case 不存在")
+        raise HTTPException(status_code=404, detail="case not found")
     if case["status"] in ("comparing", "done"):
         return {"case_id": case_id, "status": case["status"]}
 
     participant = await study_store.get_participant(str(case["participant_id"]))
     if not participant:
-        raise HTTPException(status_code=404, detail="参与者不存在")
+        raise HTTPException(status_code=404, detail="participant not found")
 
     # 守卫:所有 learning run 必须已 finish(记忆已整理)才能生成 with 分支,
     # 否则 with 分支的 skill 可能缺最新偏好,损害双分支对比的公平性。
     if await study_store.has_incomplete_learning(str(case["participant_id"])):
         raise HTTPException(
             status_code=409,
-            detail="仍有未完成的学习会话;请先完成并整理全部 5 个学习会话再进入评测",
+            detail="Not all learning sessions are finished; complete and consolidate all 5 before evaluation",
         )
 
     snapshot = case.get("brief_snapshot") or {}
     if not snapshot.get("brief") or not snapshot.get("tags"):
         raise HTTPException(
             status_code=409,
-            detail="case 尚未完成对齐(brief/tags 为空);请先在 align 会话确认",
+            detail="case alignment is incomplete (brief/tags empty); confirm the intent first",
         )
 
     user_id = participant["user_id"]
@@ -455,7 +455,7 @@ async def generate_pair(case_id: str, request: Request):
     # 基底图:场景参考图(评测素材) → 落 uploads/ 供分支会话引用
     scene_img = scene_asset_path(case["scene_id"])
     if not scene_img.exists():
-        raise HTTPException(status_code=409, detail=f"场景素材缺失: {scene_img}")
+        raise HTTPException(status_code=409, detail=f"scene asset missing: {scene_img}")
     with_session = str(uuid.uuid4())
     without_session = str(uuid.uuid4())
     ref_url, _ = save_reference_image(with_session, scene_img.read_bytes(), "image/png")
@@ -510,10 +510,10 @@ async def submit_choice(case_id: str, body: ChoiceBody):
     from app.study import store as study_store
 
     if body.preference not in ("left", "right", "tie"):
-        raise HTTPException(status_code=422, detail="preference 必须为 left/right/tie")
+        raise HTTPException(status_code=422, detail="preference must be left/right/tie")
     case = await study_store.get_case(case_id)
     if not case:
-        raise HTTPException(status_code=404, detail="case 不存在")
+        raise HTTPException(status_code=404, detail="case not found")
     await study_store.save_choice(case_id, body.preference, body.ratings, body.comment)
     return {"case_id": case_id, "status": "done"}
 
@@ -524,7 +524,7 @@ async def export_participant(pid: str):
 
     participant = await study_store.get_participant(pid)
     if not participant:
-        raise HTTPException(status_code=404, detail="参与者不存在")
+        raise HTTPException(status_code=404, detail="participant not found")
 
     runs = await study_store.list_runs(pid)
     cases = await study_store.list_cases(pid)

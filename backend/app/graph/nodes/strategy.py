@@ -73,7 +73,7 @@ async def strategy_node(state: SessionState) -> dict:
         directions = [
             {
                 "id": "A",
-                "name": "意图直推方案",
+                "name": "Direct reasoning scheme",
                 "dominant_intents": valid_tags,
                 "mechanism": "",
                 "core_technique": "",

@@ -1,643 +1,712 @@
-# 本体 v3 知识卡 — 每个二级意图一张电影语法卡片(LLM 初稿 + 人工审校)
+# Ontology v3 knowledge cards - one film-grammar card per sub-intent (LLM draft + human review)
 #
-# 这是纯推理生成的知识锚点:替代"标注数据→检索召回",把电影语法先验
-# 直接挂在设计空间的叶子上。生成时按收敛 tags 注入对应卡片。
+# Knowledge anchor for pure-reasoning generation: instead of "labeled data ->
+# retrieval", film-grammar priors hang directly on the leaves of the design
+# space. Cards for the converged tags are injected at generation time.
 #
-# 字段:
-#   mechanism  — 该意图起作用的心理/知觉机制(为什么观众会产生这个效果)
-#   techniques — 十参数中与该意图强相关的参数及候选手法(只列要害,非全表)
-#   references — 经典参照(供 LLM 锚定具体性,不是要复制的模板)
+# Fields:
+#   mechanism  - the psychological/perceptual mechanism by which this intent works
+#                (why the audience feels this effect)
+#   techniques - the shot parameters most relevant to this intent and candidate
+#                choices (only the essentials, not the full table)
+#   references - classic references (to anchor concreteness for the LLM, not
+#                templates to copy)
 
 knowledge:
-  "1.1":
-    mechanism: 恐惧源于威胁知觉加不可控感——看不全(信息剥夺)与逼近感(空间侵入)直接触发防御反应。
+  '1.1':
+    mechanism: Fear arises from threat perception plus a sense of uncontrollability
+      - not seeing the whole (information deprivation) and felt approach (spatial
+      intrusion) directly trigger the defensive response.
     techniques:
-      shot_size: 大特写捕捉惊恐面部;或远景让威胁在画面深处若隐若现
-      angle: 低角度仰拍威胁制造压迫;倾斜机位制造失稳
-      lighting: 低调硬光、底光照脸、大面积阴影供威胁藏匿
-      movement: 缓慢推近制造逼近感;手持抖动传染生理恐慌
-      depth_of_field: 浅景深让焦外威胁不可辨认
-      rhythm: 长时间压抑后骤然爆发的惊吓节拍
+      shot_size: Extreme close-up catching the terrified face; or long shot with the
+        threat flickering deep in the frame
+      angle: Low angle looking up at the threat to create oppression; tilted camera
+        for instability
+      lighting: Low-key hard light, underlighting on the face, large shadow areas
+        for the threat to hide in
+      movement: Slow push-in creating approach; handheld shake transmitting physiological
+        panic
+      depth_of_field: Shallow depth of field leaving the out-of-focus threat unrecognizable
+      rhythm: A shock beat that bursts abruptly after a long suffocating buildup
     references:
-      - 《闪灵》双胞胎走廊:对称构图+缓推+突然切近
-      - 《大白鲨》海滩 dolly zoom:空间畸变外化恐惧
-
-  "1.2":
-    mechanism: 紧张来自持续的不确定与感官紧绷——视觉空间的拥挤压缩与节奏挤压让观众生理性屏息。
+    - 'The Shining, twins corridor: symmetrical composition + slow push-in + sudden
+      cut closer'
+    - 'Jaws, beach dolly zoom: spatial distortion externalizing fear'
+  '1.2':
+    mechanism: Tension comes from sustained uncertainty and sensory strain - cramped,
+      compressed visual space and rhythmic squeezing make the audience hold their
+      breath physically.
     techniques:
-      composition: 紧框、前景遮挡压缩呼吸空间
-      movement: 手持微晃、贴身跟拍
-      rhythm: 剪辑加密、镜头时长递减;或反向用单镜拖长制造煎熬
-      lighting: 闪烁或不稳定光源
-      duration: 在"还没发生"上停留超出舒适区
+      composition: Tight framing and foreground obstruction compressing breathing
+        room
+      movement: Subtle handheld sway, body-hugging follow shots
+      rhythm: Denser cutting with shrinking shot lengths; or the reverse - a single
+        shot stretched out into ordeal
+      lighting: Flickering or unstable light sources
+      duration: Dwelling on what has not happened yet, past the comfort zone
     references:
-      - 《谍影重重》手持紧框打斗
-      - 《爆裂鼓手》排练室快切与汗珠特写
-
-  "1.3":
-    mechanism: 厌恶由排斥物的近距直视触发,距离越近、细节质感越清晰越强;道德性厌恶靠不加美化的冷静呈现。
+    - The Bourne films, handheld tight-framed fights
+    - Whiplash, rehearsal-room rapid cuts and sweat-bead close-ups
+  '1.3':
+    mechanism: Disgust is triggered by close direct looking at a repellent object;
+      the nearer the distance and the clearer the tactile detail, the stronger it
+      becomes. Moral disgust works through unvarnished, clinical presentation.
     techniques:
-      shot_size: 大特写直视排斥物或细节
-      focal_length: 近摄放大材质质感
-      lighting: 病态绿黄色调、平光不留美化余地
-      color_tone: 污浊低饱和,或令人不适的高饱和
-      duration: 不剪开、强迫观看
+      shot_size: Extreme close-up staring straight at the repellent object or its
+        detail
+      focal_length: Close-range shooting magnifying material texture
+      lighting: Sickly green-yellow cast; flat light leaving no room for beautification
+      color_tone: Dirty low saturation, or deliberately uncomfortable high saturation
+      duration: No cutaway; forcing the gaze to stay
     references:
-      - 《老男孩》生吃章鱼长镜
-      - 《寄生虫》"气味"细节特写
-
-  "1.4":
-    mechanism: 悲伤需要时间与空间的留白让情绪沉降——慢节奏、冷色与人物-环境的分离感引导共鸣性低落。
+    - Oldboy (2003), the long take of eating live octopus
+    - Parasite, close-ups of the smell details
+  '1.4':
+    mechanism: Sadness needs temporal and spatial breathing room for the emotion to
+      settle - slow pacing, cold color, and the figure's separation from the environment
+      guide empathic deflation.
     techniques:
-      shot_size: 中近景注视沉默,或远景将人物孤立于空旷
-      movement: 静止长镜或极缓移动
-      color_tone: 低饱和冷蓝灰
-      lighting: 阴天散射光、窗光侧逆
-      duration: 超出叙事必需的停留,给情绪滞留时间
+      shot_size: Medium/close shots watching silence, or long shots isolating the
+        figure in emptiness
+      movement: Static long take or extremely slow movement
+      color_tone: Low-saturation cold blue-gray
+      lighting: Overcast diffused light; window light from the side or behind
+      duration: Holding longer than the narrative requires, giving the emotion time
+        to linger
     references:
-      - 《海边的曼彻斯特》冷色静框
-      - 《东京物语》低机位静观
-
-  "1.5":
-    mechanism: 正向情绪由开放空间、暖色高调与流畅运动唤起——运动的自由感直接映射心理的轻盈。
+    - Manchester by the Sea, cold-toned static frames
+    - Tokyo Story, quiet observation from a low camera
+  '1.5':
+    mechanism: Positive emotion is evoked by open space, warm high-key color, and
+      fluid motion - the felt freedom of movement maps directly onto psychological
+      lightness.
     techniques:
-      lighting: 高调自然光、日光直晒
-      color_tone: 暖黄高饱和
-      movement: 流畅升降环绕、跟随奔跑
-      rhythm: 轻快,与音乐性剪辑配合
-      shot_size: 开放空间全景与笑脸近景交替
+      lighting: High-key natural light, direct sunlight
+      color_tone: Warm yellow, high saturation
+      movement: Smooth crane rises, orbits, and run-alongs
+      rhythm: Brisk, in step with music-driven cutting
+      shot_size: Alternating open-space wide shots and close-ups of smiling faces
     references:
-      - 《爱乐之城》开场高速公路歌舞
-      - 《菊次郎的夏天》绿野骑行
-
-  "1.6":
-    mechanism: 愤怒被不公的直视与对抗性构图点燃——正面冲突轴线、攻击性运动和硬切把观众推入对抗位。
+    - La La Land, the opening freeway song-and-dance
+    - Kikujiro, cycling through green fields
+  '1.6':
+    mechanism: Anger is ignited by unflinching confrontation and adversarial composition
+      - head-on conflict axes, aggressive movement, and hard cuts push the audience
+      into an oppositional stance.
     techniques:
-      angle: 正面直视、轴线对峙
-      movement: 急推、甩镜、攻击性手持
-      rhythm: 硬切、快节奏对切
-      lighting: 高对比硬光
-      composition: 对称对峙或压迫性失衡
+      angle: Frontal direct gaze; axis-facing standoff
+      movement: Sudden pushes, whip pans, aggressive handheld
+      rhythm: Hard cuts, fast cross-cutting between opponents
+      lighting: High-contrast hard light
+      composition: Symmetric standoff or oppressive imbalance
     references:
-      - 《愤怒的公牛》拳台逼近
-      - 《小丑》地铁爆发段落
-
-  "1.7":
-    mechanism: 敬畏来自尺度的不可丈量——人与巨物的极端比例差、缓慢庄严的揭示运动与仰视角令观众体验"被超越"。
+    - Raging Bull, closing in on the ring
+    - Joker, the subway outburst sequence
+  '1.7':
+    mechanism: Awe comes from scale beyond measure - the extreme proportional contrast
+      between a human and a colossal object, slow solemn revealing movements, and
+      low angles let the audience experience being transcended.
     techniques:
-      shot_size: 大远景呈现极端比例
-      angle: 仰拍巨物
-      movement: 缓慢庄严的上升或揭示
-      focal_length: 广角强化体量
-      duration: 长镜让观众"看够"
-      lighting: 神性逆光、体积光
+      shot_size: Extreme long shot rendering the extreme scale contrast
+      angle: Low angle on the colossal object
+      movement: Slow, solemn rise or reveal
+      focal_length: Wide angle accentuating mass
+      duration: Long take letting the audience look their fill
+      lighting: Divine backlight, volumetric light
     references:
-      - 《2001太空漫游》黑石仰拍
-      - 《沙丘》沙虫揭示;《星际穿越》巨浪
-
-  "2.1":
-    mechanism: 视线被对比吸引——焦点、亮度、色彩、运动四种对比任一可把注视钉在目标上。
+    - '2001: A Space Odyssey, low-angle shots of the monolith'
+    - Dune, the sandworm reveal; Interstellar, the giant wave
+  '2.1':
+    mechanism: The eye is drawn by contrast - any one of focus, brightness, color,
+      or motion contrast can pin the gaze to the target.
     techniques:
-      depth_of_field: 浅景深把主体从环境中剥离
-      lighting: 主体亮于环境的光比引导
-      composition: 中心构图或引导线汇聚
-      shot_size: 切入特写直接放大
-      movement: 推镜逼近目标
+      depth_of_field: Shallow depth of field stripping the subject from its environment
+      lighting: Lighting ratio making the subject brighter than its surroundings
+      composition: Centered composition or converging leading lines
+      shot_size: Cut-in close-up that simply magnifies
+      movement: Push-in closing on the target
     references:
-      - 《教父》开场缓推 Bonasera
-      - 《美人计》钥匙大特写的吊臂下降
-
-  "2.2":
-    mechanism: 视线沿运动、光带与构图线移动——安排"先看哪、后看哪"等于在单帧内做剪辑。
+    - The Godfather, the slow push-in on Bonasera in the opening
+    - Notorious, the crane descent to the key extreme close-up
+  '2.2':
+    mechanism: The gaze travels along motion, bands of light, and compositional lines
+      - choreographing what is seen first and next is editing within a single frame.
     techniques:
-      composition: 引导线、明暗梯度铺设视线路径
-      movement: 摇移带视线、角色走位接力
-      lighting: 光区依次点亮引导扫视顺序
-      depth_of_field: 焦点拉移强制切换注视点
+      composition: Leading lines and light/dark gradients paving the gaze path
+      movement: Pans and tracks carrying the gaze; character blocking handing it off
+        in relay
+      lighting: Light zones lighting up in sequence to guide the order of scanning
+      depth_of_field: Rack focus forcing the point of attention to switch
     references:
-      - 《历劫佳人》开场长镜的炸弹-人物视线接力
-      - 《罗马》全景内的纵深调度
-
-  "2.3":
-    mechanism: 通过剥夺对比让次要信息退场——失焦、暗部、边缘化、遮挡;观众"看不见"是设计出来的。
+    - Touch of Evil, the bomb-to-character gaze relay in the opening long take
+    - Roma (2018), deep-space staging within the widescreen frame
+  '2.3':
+    mechanism: 'Secondary information is retired by stripping its contrast - defocus,
+      shadow, marginalization, occlusion: the audience''s not seeing is a designed
+      result.'
     techniques:
-      depth_of_field: 焦外虚化次要元素
-      lighting: 把次要信息压入暗部
-      composition: 推至画框边缘或被前景遮挡
-      color_tone: 低饱和灰化背景
+      depth_of_field: Blurring secondary elements out of focus
+      lighting: Pushing secondary information into shadow
+      composition: Pushed to the frame edge or hidden behind foreground elements
+      color_tone: Low-saturation, grayed background
     references:
-      - 《教父》暗部藏脸的低调布光
-      - 《寄生虫》画面暗角中的前管家
-
-  "2.4":
-    mechanism: 单镜内注意从 A 交接到 B,靠焦点转移、运动接力或新元素入画的突然性完成。
+    - The Godfather, low-key lighting hiding faces in shadow
+    - Parasite, the previous housekeeper in the vignetted darkness
+  '2.4':
+    mechanism: Within a single shot, attention passes from A to B through rack focus,
+      movement relay, or the abruptness of a new element entering the frame.
     techniques:
-      depth_of_field: 焦点从 A 拉到 B
-      movement: 摇移从 A 带到 B、跟随物件转手
-      composition: B 从前景或背景突然入画
+      depth_of_field: Rack focus from A to B
+      movement: Pan or track carrying from A to B; following an object as it changes
+        hands
+      composition: B enters the frame abruptly from foreground or background
     references:
-      - 《七宗罪》焦点从对话拉到背后细节
-      - 长镜调度中的"接力棒"原则
-
-  "3.1":
-    mechanism: 持续低气压靠稳定而非爆发的手段维持——低调光、压低的空间、缓慢取景让威胁"悬而不发"。
+    - Se7en, rack focus from the conversation to a detail behind
+    - The baton-relay principle in long-take staging
+  '3.1':
+    mechanism: Sustained oppression is maintained by steady rather than eruptive means
+      - low-key light, lowered spaces, and slow framing keep the threat suspended,
+      never released.
     techniques:
-      lighting: 低调、大面积阴影、冷峻顶光
-      composition: 低天花板、门窗框二次框取
-      color_tone: 脱饱和的冷绿铁灰
-      movement: 极缓的潜行式移动
-      rhythm: 全场压着不放,拒绝释放
+      lighting: Low key, large shadow masses, cold overhead light
+      composition: Low ceilings; doors and windows as second frames
+      color_tone: Desaturated cold green-iron gray
+      movement: Extremely slow, stalking movement
+      rhythm: The whole scene held down, refusing release
     references:
-      - 《七宗罪》全片雨夜低调
-      - 《沙丘》厅堂压顶构图
-
-  "3.2":
-    mechanism: 失衡的视觉语法持续打破前庭预期——倾斜地平线、不规则运动、空间畸变让观众"站不稳"。
+    - Se7en, the rain-soaked low-key look throughout
+    - Dune, looming ceilings pressing down in the great halls
+  '3.2':
+    mechanism: A destabilized visual grammar keeps breaking vestibular expectations
+      - tilted horizons, irregular motion, and spatial distortion make the audience
+      lose their footing.
     techniques:
-      angle: 倾斜机位常态化
-      movement: 漂浮、旋转、不规则手持
-      focal_length: 广角畸变或 dolly zoom
-      composition: 持续打破水平与垂直
+      angle: Dutch angles as an ongoing norm
+      movement: Drifting, rotating, irregular handheld
+      focal_length: Wide-angle distortion or dolly zoom
+      composition: Persistently breaking horizontals and verticals
     references:
-      - 《迷魂记》楼梯 dolly zoom
-      - 《黑天鹅》贴身旋转手持
-
-  "3.3":
-    mechanism: 全场低落底色靠环境性手段:恒定的冷灰影调、阴雨质感与缓滞节奏,不指向单一事件。
+    - Vertigo, the stairwell dolly zoom
+    - Black Swan, rotating body-hugging handheld
+  '3.3':
+    mechanism: 'An all-over depressive baseline relies on environmental means: a constant
+      cold-gray tonal palette, damp rainy texture, and sluggish rhythm, pointed at
+      no single event.'
     techniques:
-      color_tone: 冷蓝灰、低饱和恒定
-      lighting: 阴天散射、无直射光
-      rhythm: 全场缓滞
-      composition: 空镜与留白,人物在画面中偏小
+      color_tone: Cold blue-gray, held at constant low saturation
+      lighting: Overcast diffusion, no direct light
+      rhythm: Uniformly sluggish pacing
+      composition: Empty shots and negative space; figures kept small in the frame
     references:
-      - 《海边的曼彻斯特》
-      - 塔可夫斯基《乡愁》雾雨长镜
-
-  "3.4":
-    mechanism: 疏离感来自观看距离的制度化——远观、遮挡、对称冷峻的空间把人物几何化,观众被挡在情感之外。
+    - Manchester by the Sea
+    - Tarkovsky's Nostalghia, fog-and-rain long takes
+  '3.4':
+    mechanism: Alienation comes from an institutionalized viewing distance - distant
+      observation, occlusion, and symmetric austere spaces geometrize people and keep
+      the audience outside their emotions.
     techniques:
-      shot_size: 中远景为主、拒绝特写
-      composition: 对称几何化、人物嵌入建筑结构
-      movement: 冷静的轨道平移或固定
-      color_tone: 冷调或漂白
-      lighting: 平冷光
+      shot_size: Mostly medium and long shots; close-ups refused
+      composition: Symmetric geometrization; figures embedded in architecture
+      movement: Calm lateral tracking or a fixed camera
+      color_tone: Cold tone or bleached
+      lighting: Flat, cold light
     references:
-      - 《闪灵》酒店对称空镜
-      - 安东尼奥尼《奇遇》;罗伊·安德森固定中远景
-
-  "3.5":
-    mechanism: 亲密底色由暖光、近距与柔质感持续供给——观众被"包进"人物的安全空间。
+    - The Shining, symmetric empty shots of the hotel
+    - Antonioni's L'Avventura; Roy Andersson's static medium-long shots
+  '3.5':
+    mechanism: An intimate baseline is continuously supplied by warm light, proximity,
+      and soft texture - the audience is wrapped into the characters' safe space.
     techniques:
-      lighting: 暖色实用光源(台灯炉火夕阳)、柔光
-      color_tone: 暖黄橙、奶油调
-      shot_size: 中近景群像、人物共享画框
-      depth_of_field: 柔焦浅景深
-      movement: 轻缓跟随
+      lighting: Warm practical sources (lamps, firelight, sunset), soft light
+      color_tone: Warm yellow-orange, creamy grade
+      shot_size: Medium/close group shots; characters sharing the frame
+      depth_of_field: Soft-focus shallow depth of field
+      movement: Gentle, unhurried following
     references:
-      - 《小森林》灶火饭食
-      - 《请以你的名字呼唤我》夏日午后
-
-  "3.6":
-    mechanism: 抒情靠"超日常"的美化滤镜——逆光、柔焦、慢动作与音乐化运动把时刻从现实时间里抬起。
+    - Little Forest, hearth fire and meals
+    - Call Me by Your Name, summer afternoons
+  '3.6':
+    mechanism: Lyricism works through a beautifying filter beyond the everyday - backlight,
+      soft focus, slow motion, and musicalized movement lift the moment out of real
+      time.
     techniques:
-      lighting: 黄昏魔幻时刻、逆光轮廓
-      movement: 环绕双人、缓慢升降
-      rhythm: 慢动作
-      depth_of_field: 浅焦光斑
-      color_tone: 金粉暖调
+      lighting: Magic-hour light, backlit silhouettes
+      movement: Orbiting two-shots, slow crane rises and falls
+      rhythm: Slow motion
+      depth_of_field: Shallow focus and bokeh
+      color_tone: Warm golden-pink grade
     references:
-      - 《花样年华》慢动作擦肩配弦乐
-      - 《爱乐之城》天文台双人舞
-
-  "3.7":
-    mechanism: 轻快氛围是高调照明、明快色彩与跳跃节奏的组合——视觉重量被刻意调轻。
+    - In the Mood for Love, slow-motion passing-by accompanied by strings
+    - La La Land, the planetarium duet
+  '3.7':
+    mechanism: A light atmosphere is a combination of high-key lighting, bright color,
+      and skipping rhythm - visual weight deliberately lightened.
     techniques:
-      lighting: 高调、无沉重阴影
-      color_tone: 明快高饱和、糖果色
-      rhythm: 轻快剪辑、音乐驱动
-      movement: 活泼的横移与快速摇镜
-      composition: 平面化的图形趣味
+      lighting: High key, no heavy shadows
+      color_tone: Bright, saturated, candy colors
+      rhythm: Brisk, music-driven editing
+      movement: Playful lateral tracks and quick pans
+      composition: Flat, graphic playfulness
     references:
-      - 《布达佩斯大饭店》
-      - 《天使爱美丽》高饱和巴黎
-
-  "3.8":
-    mechanism: 安详由稳定与秩序传达——固定机位、均衡构图、自然光与长镜呼吸感。
+    - The Grand Budapest Hotel
+    - Amelie, a saturated Paris
+  '3.8':
+    mechanism: Tranquility is conveyed by stability and order - fixed camera, balanced
+      composition, natural light, and the breathing quality of long takes.
     techniques:
-      movement: 固定长镜或极缓
-      composition: 水平线稳定、均衡
-      lighting: 柔和自然光
-      rhythm: 缓慢均匀
-      duration: 长镜头让时间自然流淌
+      movement: Static long takes or a near-still camera
+      composition: Steady horizontals, balanced framing
+      lighting: Soft natural light
+      rhythm: Slow and even
+      duration: Long takes letting time flow naturally
     references:
-      - 小津安二郎榻榻米固定机位
-      - 《完美的日子》晨光日常
-
-  "3.9":
-    mechanism: 非现实质感来自物理规则的轻度破坏——漂浮运动、非理据光色、时间变速与边界模糊的焦点。
+    - Ozu's tatami-height fixed camera
+    - Perfect Days, morning-light daily routine
+  '3.9':
+    mechanism: An unreal texture comes from a mild breach of physical rules - floating
+      movement, unmotivated light and color, variable time, and focus with softened
+      boundaries.
     techniques:
-      movement: 漂浮斯坦尼康、倒放
-      lighting: 非理据色光(粉紫霓虹)
-      color_tone: 高度风格化
-      depth_of_field: 雾化柔焦
-      rhythm: 变速(慢动作、跳跃)
+      movement: Floating Steadicam, reverse motion
+      lighting: Unmotivated colored light (pink-violet neon)
+      color_tone: Heavily stylized
+      depth_of_field: Hazed soft focus
+      rhythm: Speed changes (slow motion, jumpy ramping)
     references:
-      - 《穆赫兰道》夜店蓝光
-      - 《银翼杀手2049》拉斯维加斯橙雾
-
-  "3.10":
-    mechanism: 身临其境感等于视点贴近加长时值加空间连续性——不被剪辑打断,观众与角色共享时空。
+    - Mulholland Drive, the nightclub's blue light
+    - Blade Runner 2049, Las Vegas orange haze
+  '3.10':
+    mechanism: Immersion equals a close viewpoint plus extended duration plus spatial
+      continuity - unbroken by cuts, the audience shares the character's time and
+      space.
     techniques:
-      movement: 长镜跟拍、贴背行进
-      duration: 超长镜头
-      shot_size: 中景贴近同时保持空间感
-      depth_of_field: 自然全焦
+      movement: Long-take follow shots, walking right behind the character
+      duration: Extended takes
+      shot_size: Close-in medium shots that keep spatial context
+      depth_of_field: Natural deep focus
     references:
-      - 《人类之子》车内突袭长镜
-      - 《1917》一镜到底
-
-  "3.11":
-    mechanism: 纪实质感靠"放弃控制"的痕迹——可见的手持、自然光、不完美构图与被动跟拍,暗示事件先于摄影机存在。
+    - Children of Men, the car-ambush long take
+    - 1917, filmed as one continuous take
+  '3.11':
+    mechanism: A documentary texture relies on traces of relinquished control - visible
+      handheld, natural light, imperfect framing, and reactive following suggest the
+      event exists before the camera.
     techniques:
-      movement: 手持跟拍、急摇找焦点
-      lighting: 全自然光、现场光
-      composition: 不修饰、容忍偶发遮挡
-      color_tone: 中性、无调色感
+      movement: Handheld following, frantic pans hunting for focus
+      lighting: All-natural available light
+      composition: Unpolished; tolerating incidental obstruction
+      color_tone: Neutral, ungraded look
     references:
-      - 《四月三周两天》晚餐固定长镜
-      - 达内兄弟贴背手持
-
-  "4.1":
-    mechanism: 观看位置与角色眼位重合时,观众被迫以第一人称处理信息——POV 与反应镜头的缝合产生代入。
+    - 4 Months, 3 Weeks and 2 Days, the static dinner long take
+    - The Dardenne brothers, close-behind handheld
+  '4.1':
+    mechanism: When the camera position coincides with the character's eye position,
+      the audience is forced to process information in the first person - the suture
+      of POV and reaction shots produces identification.
     techniques:
-      angle: 角色视线高度、POV 主观镜头
-      movement: 与角色头部运动同步
-      shot_size: POV 与反应特写交替缝合
-      depth_of_field: 模拟人眼的注意焦点
+      angle: Character eyeline height; POV subjective shots
+      movement: Motion synced to the character's head movement
+      shot_size: POV alternating with reaction close-ups to suture
+      depth_of_field: Focus simulating the human attention of the eye
     references:
-      - 《后窗》窗口 POV 体系
-      - 《索尔之子》浅焦贴脸跟拍
-
-  "4.2":
-    mechanism: 不属于任何角色的机位加克制的运动,把观众放在"目击者"位置,情感判断交还观众。
+    - Rear Window, the window-POV system
+    - Son of Saul, shallow-focus face-hugging tracking
+  '4.2':
+    mechanism: A camera that belongs to no character, with restrained movement, places
+      the audience in the position of a witness and returns emotional judgment to
+      them.
     techniques:
-      angle: 平视、不与任何角色视线重合
-      shot_size: 中远景为主
-      movement: 固定或克制平移
-      composition: 舞台式全景调度
+      angle: Eye level, coinciding with no character's eyeline
+      shot_size: Mostly medium and long shots
+      movement: Static or restrained lateral moves
+      composition: Theatrical full-scene staging
     references:
-      - 哈内克《隐藏摄像机》监控式固定
-      - 侯孝贤长镜远观
-
-  "4.3":
-    mechanism: 超越任一角色的高位俯瞰与跨空间运动,授予观众角色不具备的信息位置。
+    - Haneke's Hidden (Cache), surveillance-style static shots
+    - Hou Hsiao-hsien's long-take distant observation
+  '4.3':
+    mechanism: A high vantage above any single character and cross-space movement
+      grant the audience an information position the characters do not have.
     techniques:
-      angle: 大俯拍、正俯视
-      movement: 上升脱离人物、跨越空间的升降航拍
-      shot_size: 大远景中人如棋子
+      angle: High angle, top-down overhead
+      movement: Rises lifting away from the figures; crane or aerial moves crossing
+        space
+      shot_size: Extreme long shots with people like chess pieces
     references:
-      - 《教父》洗礼蒙太奇的全知交叉
-      - 《公民凯恩》穿越天窗下降
-
-  "4.4":
-    mechanism: 镜头资源的分配(谁拥有特写、谁拥有 POV、谁占画框中心)悄悄分配观众的亲近与立场。
+    - The Godfather, omniscient cross-cutting in the baptism montage
+    - Citizen Kane, the descent through the skylight
+  '4.4':
+    mechanism: The allocation of shot resources - who owns the close-ups, who owns
+      the POVs, who occupies frame center - quietly distributes the audience's sympathy
+      and allegiance.
     techniques:
-      shot_size: 给目标角色更多、更近的注视
-      angle: 视线匹配的过肩偏向
-      lighting: 目标角色的光更立体
-      composition: 中心与边缘的位置分配
+      shot_size: More and closer looks at the favored character
+      angle: Over-shoulder bias matched to eyelines
+      lighting: More sculpted light on the favored character
+      composition: Placement between center and edge
     references:
-      - 《沉默的羔羊》汉尼拔直视镜头的正面特写
-      - 《惊魂记》中段视点的悄然转移
-
-  "5.1":
-    mechanism: 支配关系被空间语法直译——高度差、画面占比与稳定度,观众用身体经验读出强弱。
+    - The Silence of the Lambs, Hannibal's frontal close-up looking into the lens
+    - Psycho, the quiet mid-film shift of viewpoint
+  '5.1':
+    mechanism: Dominance relations are translated directly into spatial grammar -
+      height difference, share of the frame, and stability - and the audience reads
+      strength and weakness from bodily experience.
     techniques:
-      angle: 仰拍强者、俯拍弱者
-      shot_size: 强者占据更大画幅
-      composition: 高位中心对低位边缘
-      lighting: 强者面光立体、弱者扁平
-      movement: 镜头围绕强者组织
+      angle: Low angle for the dominant, high angle for the dominated
+      shot_size: The dominant figure fills more of the frame
+      composition: High center versus low edge
+      lighting: Sculpted light on the dominant face, flat light on the weak
+      movement: The camera organized around the dominant figure
     references:
-      - 《公民凯恩》低机位仰拍
-      - 《寄生虫》楼梯上下的垂直权力
-
-  "5.2":
-    mechanism: 内心状态经面部微表情特写、视线方向与主观化视听(焦点光色随心理变化)外化为可读信号。
+    - Citizen Kane, low-angle shots from a low camera
+    - Parasite, vertical power up and down the stairs
+  '5.2':
+    mechanism: Inner states are externalized into readable signals through facial
+      micro-expression close-ups, gaze direction, and subjectivized audiovisual treatment
+      - focus, light, and color shifting with the psychology.
     techniques:
-      shot_size: 面部特写、大特写
-      duration: 在反应上停留
-      lighting: 心理化光影(阴影分割面孔)
-      depth_of_field: 失焦表达恍惚
-      movement: 缓推进入内心
+      shot_size: Facial close-ups and extreme close-ups
+      duration: Holding on the reaction
+      lighting: Psychologized light (shadow dividing the face)
+      depth_of_field: Defocus expressing a dazed state
+      movement: Slow push-in moving into the interior
     references:
-      - 《教父》迈克尔刺杀前的眼神特写
-      - 德莱叶《圣女贞德受难记》的面孔
-
-  "5.3":
-    mechanism: 关系是画框内的几何——距离、分隔物、共框与否、视线连接;构图是关系的地形图。
+    - The Godfather, the close-up of Michael's eyes before the killing
+    - Dreyer's The Passion of Joan of Arc, the faces
+  '5.3':
+    mechanism: 'A relationship is geometry within the frame - distance, separators,
+      shared frame or not, eyeline connection: composition is the topographic map
+      of the relationship.'
     techniques:
-      composition: 共框分框、前景障碍分隔、对称对峙
-      shot_size: 双人景别与单人切分的选择
-      depth_of_field: 同焦平面表同盟,前后景分离表隔阂
-      movement: 镜头把两人"缝"在一起或切开
+      composition: Shared or split framing, foreground barriers separating, symmetric
+        standoff
+      shot_size: Choosing between two-shots and single shots
+      depth_of_field: Same focal plane signals alliance; fore/background separation
+        signals estrangement
+      movement: The camera sewing the two together or cutting them apart
     references:
-      - 《花样年华》墙与门框的分隔
-      - 《婚姻故事》开场共框到分框
-
-  "5.4":
-    mechanism: 角色登场的视觉修辞——环境、道具、光型与运动方式——在台词之前完成身份陈述。
+    - In the Mood for Love, separation by walls and doorframes
+    - Marriage Story, opening shared frames breaking into separate frames
+  '5.4':
+    mechanism: The visual rhetoric of a character's entrance - environment, props,
+      lighting style, and manner of movement - completes the statement of identity
+      before any line of dialogue.
     techniques:
-      composition: 人物嵌入其属性环境(职业空间、随身物件)
-      lighting: 性格化光型(硬汉侧光、纯真高调)
-      movement: 登场方式(缓慢揭示或突然闯入)
-      shot_size: 手部、物件等细节特写代言身份
+      composition: Figures embedded in attribute environments (workspace, carried
+        objects)
+      lighting: Character-specific lighting styles (hard side light for toughness,
+        high key for innocence)
+      movement: Manner of entrance (slow reveal or sudden intrusion)
+      shot_size: Detail close-ups of hands and objects speaking for identity
     references:
-      - 《低俗小说》西装走廊
-      - 《西部往事》口琴人登场
-
-  "6.1":
-    mechanism: 镜头时长递减加运动加剧造成信息流提速,观众心率被拖着上行。
+    - Pulp Fiction, the suited walk down the corridor
+    - Once Upon a Time in the West, the Harmonica man's entrance
+  '6.1':
+    mechanism: Shrinking shot lengths plus intensifying movement accelerate the information
+      flow, dragging the audience's heart rate upward.
     techniques:
-      rhythm: 剪辑加密、镜头时长递减
-      movement: 快速推拉摇移、追身手持
-      duration: 短镜头堆叠
-      shot_size: 景别跳变幅度加大
+      rhythm: Denser cutting, shot lengths shrinking
+      movement: Fast pushes, pulls, pans, and tilts; chase handheld
+      duration: Stacked short shots
+      shot_size: Wider jumps between shot sizes
     references:
-      - 《谍影重重》打斗快切
-      - 《疯狂的麦克斯4》追逐
-
-  "6.2":
-    mechanism: 超长时值加慢动作或静止让时间黏稠化——观众被迫与画面"对坐",情绪沉降或张力积聚。
+    - The Bourne films, rapid-cut fights
+    - 'Mad Max: Fury Road, the chases'
+  '6.2':
+    mechanism: Extended duration plus slow motion or stillness makes time viscous
+      - the audience is forced to sit with the image while emotion settles or tension
+      accumulates.
     techniques:
-      duration: 长镜头超出预期
-      movement: 固定或缓慢蠕动
-      rhythm: 慢动作、延迟剪辑
-      composition: 静态构图供凝视
+      duration: Long takes exceeding expectation
+      movement: Static or slowly creeping
+      rhythm: Slow motion, delayed cuts
+      composition: Static compositions made for staring
     references:
-      - 塔可夫斯基《潜行者》水中长镜
-      - 《老无所依》旅馆对峙的静默
-
-  "6.3":
-    mechanism: 时间跨度被压缩为可感知的视觉变化序列——叠化、空镜、光线季节变化与匹配剪辑。
+    - Tarkovsky's Stalker, the long takes in the water
+    - No Country for Old Men, the silence of the motel standoff
+  '6.3':
+    mechanism: Time spans are compressed into perceptible sequences of visual change
+      - dissolves, empty shots, shifts of light and season, and match cuts.
     techniques:
-      rhythm: 叠化蒙太奇、跳切序列
-      lighting: 日夜光线推移
-      composition: 同机位重复对比
-      movement: 延时摄影
+      rhythm: Dissolve montages, jump-cut sequences
+      lighting: Day/night light transitions
+      composition: Repeated same-camera comparisons
+      movement: Time-lapse
     references:
-      - 《公民凯恩》早餐桌蒙太奇
-      - 《2001太空漫游》骨头掷向太空船的匹配剪辑
-
-  "6.4":
-    mechanism: 序列的节奏包络(紧-松-紧)被设计成情绪曲线,观众随剪辑呼吸;高潮前的减速是蓄力。
+    - Citizen Kane, the breakfast-table montage
+    - '2001: A Space Odyssey, the bone-to-spaceship match cut'
+  '6.4':
+    mechanism: The pacing envelope of a sequence (tight-loose-tight) is designed as
+      an emotional curve the audience breathes along with the editing; deceleration
+      before the climax is loading the spring.
     techniques:
-      rhythm: 段落级的加速-停顿-爆发设计
-      duration: 关键镜头前的刻意延长
-      movement: 运动量随情绪曲线增减
+      rhythm: Segment-level acceleration-pause-burst design
+      duration: Deliberate lengthening before the key shot
+      movement: Movement energy rising and falling with the emotional curve
     references:
-      - 《爆裂鼓手》结尾独奏的张弛编排
-      - 《盗梦空间》多层时间的交叉剪辑升压
-
-  "7.1":
-    mechanism: 物理距离的缩短被翻译为心理亲近——近景距离、平视视线高度与柔光,模拟亲密关系中的身体经验。
+    - Whiplash, the tension-and-release architecture of the final solo
+    - Inception, multi-layer time cross-cutting ramping up the pressure
+  '7.1':
+    mechanism: Shortened physical distance is translated into psychological closeness
+      - near framing, eye-level gaze height, and soft light simulate the bodily experience
+      of intimacy.
     techniques:
-      shot_size: 近景特写距离驻留
-      angle: 平视视线高度
-      lighting: 柔光、眼神光
-      movement: 轻微呼吸感手持
-      depth_of_field: 浅焦隔出二人世界
+      shot_size: Holding at close-shot distance
+      angle: Eye-level gaze height
+      lighting: Soft light, catchlights
+      movement: Handheld with a subtle breathing feel
+      depth_of_field: Shallow focus isolating a world of two
     references:
-      - 《爱在黎明破晓前》对话近景
-      - 《月光男孩》海滩浅焦
-
-  "7.2":
-    mechanism: 共鸣靠"和角色一起经历"而非旁观——跟随式运动、反应镜头优先于动作、时值给足情绪发酵。
+    - Before Sunrise, close-framed conversation
+    - Moonlight, shallow focus on the beach
+  '7.2':
+    mechanism: Resonance comes from experiencing with the character rather than watching
+      from outside - following movement, reaction shots privileged over the action
+      itself, and enough duration for the emotion to ferment.
     techniques:
-      movement: 跟拍同行
-      shot_size: 反应特写优先于动作本身
-      duration: 在情绪上停留
-      rhythm: 随角色心理节奏起伏
+      movement: Tracking alongside, walking with the character
+      shot_size: Reaction close-ups privileged over the action itself
+      duration: Dwelling on the emotion
+      rhythm: Rising and falling with the character's inner rhythm
     references:
-      - 《索尔之子》全程贴背
-      - 《海边的曼彻斯特》警局崩溃长镜
-
-  "7.3":
-    mechanism: 刻意的信息缺口(只给行为不给解释)加面部驻留,逼观众主动建模角色内心——投入随推断加深。
+    - Son of Saul, glued behind the protagonist throughout
+    - Manchester by the Sea, the police-station breakdown long take
+  '7.3':
+    mechanism: Deliberate information gaps (behavior without explanation) plus held
+      faces force the audience to actively model the character's mind - investment
+      deepens as inference grows.
     techniques:
-      shot_size: 面部长特写但不给答案
-      duration: 超长驻留制造解读空间
-      composition: 背影、遮挡保留谜
-      movement: 静观不介入
+      shot_size: Long facial close-ups that refuse answers
+      duration: Extended holds opening space for interpretation
+      composition: Backs and obstructions keeping the mystery
+      movement: Quiet observation without intervention
     references:
-      - 《托尼·厄德曼》结尾面孔长镜
-      - 凯莉·莱卡特的克制面部驻留
-
-  "7.4":
-    mechanism: 受难的可见性与加害的不对称呈现引导道德站队——弱势视角的镜头分配让观众"在乎"。
+    - Toni Erdmann, the final long take on the face
+    - Kelly Reichardt's restrained held faces
+  '7.4':
+    mechanism: The visibility of suffering and the asymmetrical rendering of harm
+      steer moral alignment - shot allocation to the vulnerable party makes the audience
+      care.
     techniques:
-      angle: 受难者平视、加害者机位的修辞性安排
-      shot_size: 受难细节特写
-      lighting: 受难者面孔的伦勃朗光
-      duration: 不回避的注视
+      angle: Eye level for the victim; rhetorically arranged angles for the perpetrator
+      shot_size: Close-ups of suffering detail
+      lighting: Rembrandt light on the victim's face
+      duration: A gaze that does not look away
     references:
-      - 《辛德勒的名单》红衣女孩
-      - 《何以为家》赞恩的平视跟拍
-
-  "8.1":
-    mechanism: 真相的视觉交付需要"揭示的仪式感"——运动揭开遮挡、焦点转移、景别后退露出全貌;时机即意义。
+    - Schindler's List, the girl in red
+    - Capernaum, eye-level tracking of Zain
+  '8.1':
+    mechanism: 'Delivering truth visually requires a ritual of revelation - movement
+      uncovering obstruction, rack focus, pulling back to expose the whole: timing
+      is meaning.'
     techniques:
-      movement: 摇移或后拉揭示
-      depth_of_field: 焦点拉到此前隐藏之物
-      shot_size: 由特写后退至全景露出语境
-      composition: 遮挡物的设计与移除
+      movement: Pan or pull-back reveal
+      depth_of_field: Rack focus onto what was previously hidden
+      shot_size: Pulling back from close-up to wide to expose context
+      composition: Designing and then removing obstructing elements
     references:
-      - 《楚门的世界》后拉揭示摄影棚
-      - 《看不见的客人》结尾重组闪回
-
-  "8.2":
-    mechanism: 已存在但被瞒的信息以"残缺呈现"勾起探究——碎片、局部特写、画外暗示;问题在过去。
+    - The Truman Show, the pull-back revealing the studio
+    - The Invisible Guest, the reassembled flashback at the end
+  '8.2':
+    mechanism: 'Information that exists but is withheld is presented incompletely
+      to provoke inquiry - fragments, partial close-ups, off-screen hints: the question
+      lies in the past.'
     techniques:
-      shot_size: 只给局部细节不给全貌
-      composition: 关键物置于画框边缘或虚焦处
-      lighting: 半遮半掩的暗部
-      movement: 欲揭又止的运动
+      shot_size: Partial details only, never the full picture
+      composition: Key objects at the frame edge or in soft focus
+      lighting: Half-revealing shadow
+      movement: Moves that start to reveal and then stop
     references:
-      - 《公民凯恩》"玫瑰花蕾"的全片悬置
-      - 《迷魂记》盘发漩涡特写
-
-  "8.3":
-    mechanism: 希区柯克炸弹原理——观众知道角色不知道;信息差加时间延宕等于焦灼。镜头反复确认威胁与无知的并存。
+    - Citizen Kane, the film-long withholding of Rosebud
+    - Vertigo, the close-up of the spiral hairdo
+  '8.3':
+    mechanism: 'The Hitchcock bomb principle - the audience knows what the character
+      does not: an information gap plus temporal delay equals dread. Shots keep confirming
+      the coexistence of threat and ignorance.'
     techniques:
-      composition: 威胁与无知者同框(深焦前后景)
-      rhythm: 交叉剪辑威胁与日常
-      duration: 拖长"还没发生"的时间
-      movement: 缓推向威胁源
+      composition: Threat and the ignorant character in one frame (deep focus, foreground
+        and background)
+      rhythm: Cross-cutting the threat with the everyday
+      duration: Stretching the time before it happens
+      movement: Slow push toward the threat source
     references:
-      - 希区柯克"桌下炸弹"理论
-      - 《无耻混蛋》地窖酒馆长场景
-
-  "8.4":
-    mechanism: 惊讶是预期模型的瞬间崩塌——前置铺垫先把观众推向错误预测,揭示用最短路径(硬切、入画)完成。
+    - Hitchcock's bomb-under-the-table theory
+    - Inglourious Basterds, the basement-bar scene
+  '8.4':
+    mechanism: Surprise is the instant collapse of the expectation model - prior setup
+      pushes the audience toward a wrong prediction, then the reveal arrives by the
+      shortest path (hard cut, sudden entry into frame).
     techniques:
-      rhythm: 硬切突变
-      composition: 画外空间突然入画
-      movement: 静止后的突然爆发
-      shot_size: 瞬间跳大景别
+      rhythm: Hard-cut rupture
+      composition: Off-screen space suddenly entering the frame
+      movement: Sudden eruption after stillness
+      shot_size: Instant jump to a much wider shot
     references:
-      - 《惊魂记》浴室
-      - 《老男孩》真相揭示的反转
-
-  "9.1":
-    mechanism: 定场镜头以最大信息密度建立时空坐标——地标、光线时刻、时代符号一次交付。
+    - Psycho, the shower
+    - Oldboy, the twist of the truth reveal
+  '9.1':
+    mechanism: The establishing shot fixes the space-time coordinates at maximum information
+      density - landmarks, the time of day carried by light, and period signifiers
+      delivered at once.
     techniques:
-      shot_size: 大远景定场
-      movement: 缓慢横摇或航拍扫描
-      lighting: 晨昏光线标定时间
-      composition: 地标与时代符号入框
+      shot_size: Extreme long shot for establishing
+      movement: Slow pan or aerial scan
+      lighting: Morning/evening light fixing the time
+      composition: Landmarks and period signifiers in frame
     references:
-      - 《银翼杀手》开场洛杉矶夜景
-      - 《西部往事》车站定场
-
-  "9.2":
-    mechanism: 观众需要"认知地图"才能读懂动作——全景交代相对位置,轴线一致的分切维持地图不碎。
+    - Blade Runner, the opening night view of Los Angeles
+    - Once Upon a Time in the West, the station establishing shot
+  '9.2':
+    mechanism: The audience needs a cognitive map to read the action - the wide shot
+      establishes relative positions, and cuts that respect the axis keep the map
+      intact.
     techniques:
-      shot_size: 全景主镜头铺底
-      composition: 保持轴线、视线匹配
-      movement: 调度交代位置关系
+      shot_size: Master wide shot laying the base
+      composition: Maintaining the axis; eyeline matching
+      movement: Staging that clarifies spatial relations
     references:
-      - 《七武士》村落攻防的空间交代
-      - 经典 master-coverage 分镜体系
-
-  "9.3":
-    mechanism: 背景信息嵌入画面元素(报纸、电视、标语、陈设)或前景动作,免于台词宣讲。
+    - Seven Samurai, spatial clarity in the village defense
+    - The classic master-coverage shooting system
+  '9.3':
+    mechanism: Background information is embedded in frame elements (newspapers, televisions,
+      signs, set dressing) or in foreground action, avoiding exposition by dialogue.
     techniques:
-      composition: 信息道具自然入框
-      depth_of_field: 背景信息保持可读
-      movement: 镜头扫过信息元素
-      shot_size: 关键物插入特写
+      composition: Information props placed naturally in frame
+      depth_of_field: Keeping background information legible
+      movement: The camera sweeping past information elements
+      shot_size: Cut-in close-ups of key objects
     references:
-      - 《人类之子》背景电视新闻构建世界观
-      - 《罗马》街景细节的时代信息
-
-  "10.1":
-    mechanism: 人物与环境的画面占比、融入或对立(嵌入纹理对轮廓分离)陈述其处境与归属。
+    - Children of Men, background TV news building the world
+    - Roma (2018), street details as period information
+  '10.1':
+    mechanism: The figure's share of the frame and its blending with or opposition
+      to the environment - embedded in texture versus separated by contour - states
+      its condition and belonging.
     techniques:
-      shot_size: 全景远景保持环境在场
-      composition: 人物与环境的占比与位置安排
-      focal_length: 广角纳入环境、长焦剥离环境
-      depth_of_field: 环境清晰即在场,虚化即退场
+      shot_size: Wide and long shots keeping the environment present
+      composition: Ratio and placement of figure versus environment
+      focal_length: Wide angle including the environment; telephoto stripping it away
+      depth_of_field: Environment in focus means present; blurred means absent
     references:
-      - 《革命之路》窗前人与郊区屋的对峙
-      - 《德州巴黎》人与荒漠
-
-  "10.2":
-    mechanism: 极端比例差与负空间的吞噬让人物沦为尺度参照物——观众体验存在论意义上的微小。
+    - Revolutionary Road, the figure at the window versus the suburban house
+    - Paris, Texas, the person and the desert
+  '10.2':
+    mechanism: Extreme scale contrast and engulfing negative space reduce the figure
+      to a scale reference - the audience experiences existential smallness.
     techniques:
-      shot_size: 大远景中人物如尘
-      composition: 大面积负空间、人物置于角落
-      angle: 大俯拍碾压
-      focal_length: 广角拉大空间体量
+      shot_size: Figures like specks in extreme long shots
+      composition: Large areas of negative space; the figure pushed into a corner
+      angle: Crushing high angles
+      focal_length: Wide angle inflating the scale of space
     references:
-      - 《沙丘》人与巨构
-      - 《银翼杀手2049》K 走入巨型废墟
-
-  "10.3":
-    mechanism: 宏大感需要参照系与揭示节奏——以人或已知物为尺,镜头缓慢展开体量,留给观众丈量的时间。
+    - Dune, humans against megastructures
+    - Blade Runner 2049, K walking into the colossal ruins
+  '10.3':
+    mechanism: Monumentality needs a frame of reference and a rhythm of revelation
+      - measuring against a human or a known object, the camera slowly unfolds the
+      scale and leaves the audience time to gauge it.
     techniques:
-      movement: 缓慢横摇或上升丈量巨物
-      composition: 已知尺度物作参照
-      angle: 仰拍延伸
-      duration: 长镜给足丈量时间
-      shot_size: 由局部到全貌的递进
+      movement: Slow pan or crane rise measuring the colossal object
+      composition: Known-scale objects as reference
+      angle: Low angles extending upward
+      duration: Long takes granting enough time to gauge
+      shot_size: Progression from detail to the whole
     references:
-      - 《2001太空漫游》空间站圆舞曲
-      - 《指环王》圣盔谷大全景
-
-  "10.4":
-    mechanism: 人物间距、连线与障碍是关系的空间化语言——调度改变距离即改变关系。
+    - '2001: A Space Odyssey, the space-station waltz'
+    - The Lord of the Rings, the sweeping wide shots of Helm's Deep
+  '10.4':
+    mechanism: Distance between figures, their connecting lines, and barriers are
+      the spatial language of relationships - staging that changes the distance changes
+      the relationship.
     techniques:
-      composition: 间距、前景障碍、分框
-      focal_length: 长焦压缩两人距离、广角夸大隔阂
-      movement: 走位改变距离的调度
-      depth_of_field: 前后景分离表疏远
+      composition: Gaps, foreground barriers, split framing
+      focal_length: Telephoto compressing the two together; wide angle exaggerating
+        the rift
+      movement: Blocking that alters distance
+      depth_of_field: Foreground/background separation for estrangement
     references:
-      - 《花样年华》狭巷错身
-      - 《社交网络》会议桌两端的长焦对峙
-
-  "11.1":
-    mechanism: 对称、水平与几何秩序满足知觉的完形预期,传达控制感与安定——也可反讽性地暗示僵化。
+    - In the Mood for Love, passing each other in the narrow alley
+    - The Social Network, the telephoto standoff across the conference table
+  '11.1':
+    mechanism: Symmetry, horizontals, and geometric order satisfy the perceptual expectation
+      of Gestalt closure, conveying control and calm - and can ironically suggest
+      rigidity.
     techniques:
-      composition: 对称、三分法严格执行、水平线校准
-      angle: 正面平视
-      movement: 固定或精确轨道
-      focal_length: 标准焦距、无畸变
+      composition: Symmetry, strictly applied rule of thirds, leveled horizontals
+      angle: Frontal, eye level
+      movement: Static or precisely tracked moves
+      focal_length: Normal focal length, no distortion
     references:
-      - 韦斯·安德森中轴对称
-      - 库布里克单点透视
-
-  "11.2":
-    mechanism: 打破完形预期(倾斜、切割、不完整、负空间错置)制造视觉能量——观众知觉系统持续"想纠正"。
+    - Wes Anderson's centered symmetry
+    - Kubrick's one-point perspective
+  '11.2':
+    mechanism: Breaking Gestalt expectations (tilts, truncation, incompleteness, misplaced
+      negative space) generates visual energy - the audience's perceptual system keeps
+      wanting to correct it.
     techniques:
-      composition: 不平衡配重、切头构图、边缘压迫
-      angle: 倾斜机位
-      movement: 不规则运动
-      focal_length: 广角畸变
+      composition: Unbalanced weighting, head-cutting compositions, edge pressure
+      angle: Dutch angles
+      movement: Irregular movement
+      focal_length: Wide-angle distortion
     references:
-      - 《谍影重重》不稳定框取
-      - 《大空头》刻意"错"的急变焦
-
-  "11.3":
-    mechanism: 画面自身的图形性愉悦(色彩呼应、图案重复、几何巧合)独立于叙事供给快感。
+    - The Bourne films, unstable framings
+    - The Big Short, deliberately wrong crash zooms
+  '11.3':
+    mechanism: The frame's own graphic pleasure - color echoes, pattern repetition,
+      geometric coincidences - supplies gratification independently of the narrative.
     techniques:
-      composition: 图形化构图、色块呼应
-      color_tone: 调色板的整体设计
-      lighting: 光影图案(百叶窗、剪影)
-      focal_length: 长焦平面化的图案感
+      composition: Graphic compositions, color-block echoes
+      color_tone: Overall palette designed as a whole
+      lighting: Light-and-shadow patterns (blinds, silhouettes)
+      focal_length: Telephoto flattening into pattern
     references:
-      - 《布达佩斯大饭店》糕点式色板
-      - 《英雄》色彩段落
-
-  "11.4":
-    mechanism: 跨场景稳定的形式选择(固定焦距、机位高度、色板、运动语法)累积成可识别的作者签名,统摄全片。
+    - The Grand Budapest Hotel, the confectionary palette
+    - Hero, color-coded segments
+  '11.4':
+    mechanism: Formal choices held steady across scenes - fixed focal length, camera
+      height, palette, movement grammar - accumulate into a recognizable authorial
+      signature that governs the whole film.
     techniques:
-      composition: 全片统一的构图法则
-      movement: 统一运动语法(如自我约束"只推不拉")
-      color_tone: 全片色板纪律
-      angle: 标志性机位
+      composition: A composition rule applied across the film
+      movement: Unified movement grammar (e.g., a self-imposed push-ins-only, no pulls
+        rule)
+      color_tone: Palette discipline across the film
+      angle: Signature camera positions
     references:
-      - 小津 50mm 与榻榻米机位
-      - 罗伊·安德森固定全景;韦斯·安德森全套法则
-
-  "12.1":
-    mechanism: 具象物经构图强调与语境并置获得第二语义——隐喻强度等于视觉强调乘以重复乘以叙事时机。
+    - Ozu's 50mm lens and tatami-height camera
+    - Roy Andersson's locked-off wide shots; Wes Anderson's complete rulebook
+  '12.1':
+    mechanism: A concrete object gains a second meaning through compositional emphasis
+      and contextual juxtaposition - metaphor intensity equals visual emphasis times
+      repetition times narrative timing.
     techniques:
-      composition: 象征物的显著位置与并置
-      shot_size: 插入特写赋义
-      lighting: 象征性光影(十字、牢笼影)
-      movement: 刻意驻留或回访
+      composition: Prominent placement and juxtaposition of the symbol
+      shot_size: Cut-in close-up assigning meaning
+      lighting: Symbolic light and shadow (cross shapes, cage shadows)
+      movement: Deliberate holds or revisits
     references:
-      - 《教父》橙子作为死亡前兆
-      - 《寄生虫》石头与楼梯
-
-  "12.2":
-    mechanism: 同一意象、色彩或构图的系统性回归建立全片语义网——每次重现携带累积与变奏的意义。
+    - The Godfather, oranges as omens of death
+    - Parasite, the stone and the stairs
+  '12.2':
+    mechanism: The systematic return of a single image, color, or composition builds
+      a semantic network across the film - each recurrence carries accumulated and
+      varied meaning.
     techniques:
-      color_tone: 母题色的贯穿与变奏
-      composition: 重复构图的回访
-      shot_size: 同景别重复形成视觉韵脚
-      lighting: 重复光型
+      color_tone: Running a motif color through the film with variations
+      composition: Revisiting repeated compositions
+      shot_size: Repeated shot sizes forming visual rhymes
+      lighting: Repeated lighting patterns
     references:
-      - 《辛德勒的名单》红色
-      - 基耶斯洛夫斯基《蓝》;《公民凯恩》雪花球
-
-  "12.3":
-    mechanism: 视觉参数的段落级切换(色板、画幅、质感、运动语法)成为章节标点——观众无需字幕即知"换章了"。
+    - Schindler's List, the color red
+    - 'Kieslowski''s Three Colours: Blue; Citizen Kane''s snow globe'
+  '12.3':
+    mechanism: 'Segment-level switches in visual parameters - palette, aspect ratio,
+      texture, movement grammar - act as chapter punctuation: the audience knows a
+      new chapter has begun without any title card.'
     techniques:
-      color_tone: 段落色板切换
-      lighting: 影调跨段对比
-      composition: 画幅比例变化
-      movement: 运动语法的段落切换(手持转固定)
+      color_tone: Palette switch per segment
+      lighting: Tonal contrast across segments
+      composition: Change of aspect ratio
+      movement: Movement-grammar switches between segments (handheld to locked-off)
     references:
-      - 《布达佩斯大饭店》三种画幅
-      - 《月光男孩》三章三色
+    - The Grand Budapest Hotel, three aspect ratios
+    - Moonlight, three chapters in three colors

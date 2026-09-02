@@ -99,13 +99,13 @@ async def _run_dreamina(args: list[str]) -> dict:
         out, err = await asyncio.wait_for(proc.communicate(), timeout=_CALL_TIMEOUT_S)
     except asyncio.TimeoutError:
         proc.kill()
-        raise RenderError(f"dreamina {args[0]} 调用超时({_CALL_TIMEOUT_S}s)")
+        raise RenderError(f"dreamina {args[0]} call timed out ({_CALL_TIMEOUT_S}s)")
 
     text = out.decode("utf-8", "replace").strip()
     data = _extract_json(text)
     if data is None:
         tail = text[-300:] or err.decode("utf-8", "replace")[-300:]
-        raise RenderError(f"dreamina {args[0]} 输出无法解析: {tail}")
+        raise RenderError(f"dreamina {args[0]} output unparseable: {tail}")
     return data
 
 
@@ -142,10 +142,10 @@ def _extract_json(text: str) -> dict | None:
 
 
 def _fail_message(data: dict) -> str:
-    reason = str(data.get("fail_reason") or "未知原因")
+    reason = str(data.get("fail_reason") or "unknown reason")
     if "AigcComplianceConfirmationRequired" in reason:
-        return "即梦该模型首次使用需在 Dreamina 网页端完成授权确认,请完成后重试"
-    return f"即梦生成失败: {reason}"
+        return "This Dreamina model needs a one-time authorization on the Dreamina web app before first use; please complete it and retry"
+    return f"Dreamina generation failed: {reason}"
 
 
 def _extract_media_url(data: dict, kind: str) -> str | None:
@@ -181,7 +181,7 @@ async def _submit_and_wait(submit_args: list[str], kind: str, wait_s: int) -> st
     if url:
         return url
     if not submit_id:
-        raise RenderError(f"即梦未返回 submit_id: {str(sub)[:200]}")
+        raise RenderError(f"Dreamina returned no submit_id: {str(sub)[:200]}")
 
     loop = asyncio.get_event_loop()
     deadline = loop.time() + wait_s
@@ -193,7 +193,7 @@ async def _submit_and_wait(submit_args: list[str], kind: str, wait_s: int) -> st
         url = _extract_media_url(res, kind)
         if url:
             return url
-    raise RenderError(f"即梦任务超时({wait_s}s) submit_id={submit_id}")
+    raise RenderError(f"Dreamina task timed out ({wait_s}s) submit_id={submit_id}")
 
 
 async def _download(url: str) -> bytes:
@@ -233,19 +233,25 @@ def _shot_instruction(shot: dict, chained: bool = False) -> str:
     chained=True(链式承接):以上一镜画面延续光线气氛/色调,但仍按本镜镜头语言重新取景。"""
     hint = (shot.get("frame_edit_hint") or "").strip()
     body = hint or (
-        f"以电影摄影方式重摄此画面:景别{shot.get('shot_size', '')},"
-        f"机位角度{shot.get('angle', '')},构图{shot.get('composition', '')},"
-        f"光影{shot.get('lighting', '')},色彩{shot.get('color_tone', '')}。"
-        "保持人物身份与场景元素一致(同一主体、同一空间),但按上述景别真实改变取景范围。"
+        f"Re-shoot this frame with cinematic photography: shot size {shot.get('shot_size', '')}, "
+        f"camera angle {shot.get('angle', '')}, composition {shot.get('composition', '')}, "
+        f"lighting {shot.get('lighting', '')}, color {shot.get('color_tone', '')}. "
+        "Keep the subject identity and scene elements consistent (same person, same space), "
+        "but genuinely reframe according to the requested shot size."
     )
     if chained:
-        # 关键:不再"严格保持连续一致"。基底图=身份/场景真源,上一镜仅延续光线气氛与色调,
-        # 本镜必须按镜头语言【重新取景】,不要沿用上一镜的取景与主体大小,否则景别改不动。
+        # Key: NOT "keep strict continuity". The base image is the single true source of subject
+        # identity / scene; the previous frame only extends light direction and mood. This shot
+        # must RE-FRAME per its own shot language — do not carry over the previous framing or
+        # subject scale, or the shot size cannot change.
         return (
-            "参考图为【基底图】与【上一镜画面】。【基底图】是人物身份与场景元素的唯一真源,"
-            "【上一镜画面】仅用于延续光线方向与明暗气氛——【色调/色温以本镜调色指令为准,不要沿用上一镜或原图的色彩】。"
-            "本镜务必按下述镜头语言【重新取景】,真实改变景别/机位/构图与透视,"
-            "不要沿用上一镜的取景范围与主体大小——" + body
+            "Reference images: [BASE IMAGE] and [PREVIOUS FRAME]. The base image is the only true "
+            "source of subject identity and scene elements; the previous frame only carries over "
+            "light direction and tonal mood — [color temperature/grade follows THIS shot's grading "
+            "instruction; do not inherit the previous frame's or the source image's colors]. "
+            "This shot must RE-FRAME per the shot language below, genuinely changing shot size, "
+            "camera position, composition and perspective — do not inherit the previous frame's "
+            "framing or subject scale — " + body
         )
     return body
 
@@ -253,32 +259,32 @@ def _shot_instruction(shot: dict, chained: bool = False) -> str:
 def _shot_dims_clause(shot: dict) -> str:
     """本镜十维度镜头语言短语(景别/构图/机位/运镜/节奏/焦距/景深/光影/色彩),逗号连接。"""
     segs: list[str] = []
-    # 画面构成(承接首帧)
-    for label, key in (("景别", "shot_size"), ("构图", "composition"), ("机位", "angle")):
+    # Framing (inherits from the first frame)
+    for label, key in (("shot size ", "shot_size"), ("composition ", "composition"), ("camera angle ", "angle")):
         if shot.get(key):
             segs.append(f"{label}{shot[key]}")
-    # 运动核心
+    # Motion core
     if shot.get("movement"):
-        segs.append(f"运镜:{shot['movement']}")
+        segs.append(f"camera movement {shot['movement']}")
     if shot.get("rhythm"):
-        segs.append(f"节奏:{shot['rhythm']}")
-    # 镜头光学
-    for label, key in (("焦距", "focal_length"), ("景深", "depth_of_field")):
+        segs.append(f"rhythm {shot['rhythm']}")
+    # Lens optics
+    for label, key in (("focal length ", "focal_length"), ("depth of field ", "depth_of_field")):
         if shot.get(key):
             segs.append(f"{label}{shot[key]}")
-    # 影调
-    for label, key in (("光影", "lighting"), ("色彩", "color_tone")):
+    # Tonal grade
+    for label, key in (("lighting ", "lighting"), ("color grade ", "color_tone")):
         if shot.get(key):
             segs.append(f"{label}{shot[key]}")
-    return "，".join(segs)
+    return ", ".join(segs)
 
 
 def _shot_video_prompt(shot: dict) -> str:
     """单镜图生视频运动指令(以关键帧为首帧;时长另由 --duration 传入)。"""
     return (
-        f"以此画面为首帧生成电影镜头：{_shot_dims_clause(shot)}。"
-        "严格保持主体形象与场景空间一致,仅按上述镜头语言产生运动与光影变化;"
-        "画面自然流畅,无明显形变与抖动。"
+        f"Generate a cinematic shot with this frame as the first frame: {_shot_dims_clause(shot)}. "
+        "Strictly keep the subject and scene space consistent; produce only the motion and light "
+        "changes described above. Output should be fluid and natural, free of distortion and jitter."
     )
 
 
@@ -296,9 +302,9 @@ def _fmt_t(x: float) -> str:
 
 def _transition_clause(cur: dict, nxt: dict) -> str:
     """相邻两镜的衔接说明(schema 无显式转场字段,据相邻运镜自动生成)。"""
-    a = cur.get("movement") or "本镜运动"
-    b = nxt.get("movement") or "下一镜运动"
-    return f"由「{a}」自然过渡到「{b}」,保持主体与场景空间连续,衔接顺畅不跳变。"
+    a = cur.get("movement") or "this shot's motion"
+    b = nxt.get("movement") or "the next shot's motion"
+    return f"Transition naturally from {a} to {b}, keeping the subject and scene space continuous, with a smooth cut that does not jump."
 
 
 def _scheme_video_plan(shots: list[dict]) -> tuple[int, list[tuple[float, float, dict]]]:
@@ -326,17 +332,18 @@ def _scheme_video_prompt(segs: list[tuple[float, float, dict]], total: int) -> s
     """全能参考整片 prompt:整合的时间轴(第几秒~第几秒是哪镜)+ 镜头间衔接说明。"""
     n = len(segs)
     lines = [
-        f"这是一组按时间顺序排列的电影关键帧(共 {n} 张,第 i 张对应第 i 个镜头)。"
-        f"请据此生成一段连贯的多镜头电影短片,总时长约 {total} 秒。"
-        "严格保持各镜主体形象与场景空间一致,按下方时间轴依次呈现各镜头,"
-        "镜头之间按标注方式自然衔接、节奏连贯,无明显形变与抖动。",
+        f"These are movie keyframes in chronological order ({n} frames; the i-th frame corresponds to the i-th shot). "
+        f"Generate one continuous multi-shot cinematic short film, about {total} seconds long. "
+        "Strictly keep each shot's subject and scene space consistent, present the shots in order "
+        "along the timeline below, connect adjacent shots as annotated, keep the rhythm coherent, "
+        "and avoid visible distortion and jitter.",
         "",
-        "时间轴:",
+        "Timeline:",
     ]
     for i, (t0, t1, shot) in enumerate(segs, start=1):
-        lines.append(f"[{_fmt_t(t0)}–{_fmt_t(t1)}s｜镜头{i}] 参考第{i}张图:{_shot_dims_clause(shot)}。")
+        lines.append(f"[{_fmt_t(t0)}-{_fmt_t(t1)}s | shot {i}] refer to frame {i}: {_shot_dims_clause(shot)}.")
         if i < n:
-            lines.append(f"    衔接(镜头{i}→镜头{i + 1}):{_transition_clause(shot, segs[i][2])}")
+            lines.append(f"    transition (shot {i} -> shot {i + 1}): {_transition_clause(shot, segs[i][2])}")
     return "\n".join(lines)
 
 

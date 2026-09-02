@@ -371,7 +371,7 @@ async def create_session(request: Request):
     if image is None:
         raise HTTPException(
             status_code=422,
-            detail="请上传一张参考画面(multipart 的 image 字段):本系统为画面设计重拍摄方案",
+            detail="Please upload a reference image (multipart field 'image'): this system designs re-shoot schemes for an image",
         )
     if image_brief_override and not user_id.startswith("eval-"):
         raise HTTPException(
@@ -957,17 +957,17 @@ async def render_keyframes(session_id: str, body: RenderBody, request: Request):
 
     reference_image = values.get("reference_image")
     if not reference_image:
-        raise HTTPException(status_code=409, detail="该会话没有基底图,无法渲染")
+        raise HTTPException(status_code=409, detail="This session has no base image; cannot render")
     base_path = UPLOADS_DIR / reference_image.rsplit("/", 1)[-1]
     if not base_path.exists():
-        raise HTTPException(status_code=409, detail="基底图文件不存在")
+        raise HTTPException(status_code=409, detail="Base image file not found")
 
     scheme = next(
         (c for c in values.get("candidates", []) if c.get("scheme_id") == body.scheme_id),
         None,
     )
     if scheme is None:
-        raise HTTPException(status_code=404, detail=f"方案 {body.scheme_id} 不存在")
+        raise HTTPException(status_code=404, detail=f"Scheme {body.scheme_id} not found")
 
     # 前端本地编辑(含 frame_edit_hint)随渲染一并应用 —— 不依赖会话是否停在 edit interrupt,
     # 这样载入历史(会话已不在 candidates 等待态)也能渲染编辑后的方案。
@@ -1048,7 +1048,7 @@ async def animate_shots(session_id: str, body: RenderBody, request: Request):
         None,
     )
     if scheme is None:
-        raise HTTPException(status_code=404, detail=f"方案 {body.scheme_id} 不存在")
+        raise HTTPException(status_code=404, detail=f"Scheme {body.scheme_id} not found")
 
     # 前端本地编辑随 animate 一并应用,使视频运镜/镜头语言 prompt 也反映改动
     # (state.candidates 没被 render 写回,不 apply 的话视频会用旧参数)。
@@ -1067,12 +1067,12 @@ async def animate_shots(session_id: str, body: RenderBody, request: Request):
     # 关键帧是图生视频的首帧前置;按磁盘存在性回填,缺帧则拒绝
     scheme = hydrate_frames(session_id, [scheme])[0]
     if not any(s.get("frame_image") for s in scheme.get("shots", [])):
-        raise HTTPException(status_code=409, detail="该方案尚无关键帧,请先调用 /render")
+        raise HTTPException(status_code=409, detail="This scheme has no keyframes yet; call /render first")
 
     try:
         updated = await animate_scheme(session_id, scheme)
     except RenderError as exc:
-        raise HTTPException(status_code=502, detail=f"视频合成失败: {exc}")
+        raise HTTPException(status_code=502, detail=f"Video composition failed: {exc}")
     await record_event(
         session_id,
         "render_request",
@@ -1082,7 +1082,7 @@ async def animate_shots(session_id: str, body: RenderBody, request: Request):
 
     scheme_video = updated.get("scheme_video")
     if not scheme_video:
-        raise HTTPException(status_code=409, detail="该方案没有可用关键帧,无法合成视频")
+        raise HTTPException(status_code=409, detail="This scheme has no usable keyframes; cannot compose video")
 
     return {
         "session_id": session_id,
@@ -1105,19 +1105,21 @@ async def make_backplate(session_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Session not found")
     reference_image = (state.values or {}).get("reference_image")
     if not reference_image:
-        raise HTTPException(status_code=409, detail="该会话没有基底图")
+        raise HTTPException(status_code=409, detail="This session has no base image")
     base_path = UPLOADS_DIR / reference_image.rsplit("/", 1)[-1]
     if not base_path.exists():
-        raise HTTPException(status_code=409, detail="基底图文件不存在")
+        raise HTTPException(status_code=409, detail="Base image file not found")
 
     instruction = (
-        "移除画面中的人物/主体,只保留空场景背景,自然补全人物原本遮挡的环境区域;"
-        "严格保持原有场景、构图、光线、色调与透视一致,不要添加任何人物或新的物体。"
+        "Remove the person/subject from the frame, keeping only the empty scene background; "
+        "naturally fill in the environment areas the person was covering. "
+        "Strictly preserve the original scene, composition, lighting, color and perspective; "
+        "do not add any people or new objects."
     )
     try:
         img = await edit_image([base_path], instruction)
     except RenderError as exc:
-        raise HTTPException(status_code=502, detail=f"背景生成失败: {exc}")
+        raise HTTPException(status_code=502, detail=f"Backplate generation failed: {exc}")
     fname = f"{session_id}_backplate.png"
     (UPLOADS_DIR / fname).write_bytes(img)
     return {"session_id": session_id, "url": f"{UPLOADS_URL_PREFIX}/{fname}"}

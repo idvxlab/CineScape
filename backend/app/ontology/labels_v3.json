@@ -13,422 +13,422 @@
   ],
   "top_intents": [
     {
-      "top_intent": "情绪唤起",
+      "top_intent": "Emotion Evocation",
       "type": "B",
-      "definition": "激发观众对当前情节产生特定的、点状的情绪反应。",
+      "definition": "Evoke a specific, punctual emotional response in the audience to the present moment.",
       "sub_intents": [
         {
           "code": "1.1",
-          "name": "恐惧/惊恐",
-          "definition": "激发害怕、被威胁、惊恐的即时反应",
+          "name": "Fear/Terror",
+          "definition": "Trigger an immediate reaction of fear, threat or panic.",
           "note": ""
         },
         {
           "code": "1.2",
-          "name": "紧张/焦虑",
-          "definition": "激发紧绷、焦灼的情绪张力（情绪态，非信息悬念）",
+          "name": "Tension/Anxiety",
+          "definition": "Create a taut, anxious emotional tension (an affective state, not informational suspense).",
           "note": ""
         },
         {
           "code": "1.3",
-          "name": "厌恶/反感",
-          "definition": "唤起生理或道德上的恶心、排斥",
+          "name": "Disgust/Aversion",
+          "definition": "Arouse physical or moral disgust and rejection.",
           "note": ""
         },
         {
           "code": "1.4",
-          "name": "悲伤/忧郁",
-          "definition": "唤起低落、哀伤、惋惜",
+          "name": "Sadness/Melancholy",
+          "definition": "Arouse low, sorrowful, rueful feeling.",
           "note": ""
         },
         {
           "code": "1.5",
-          "name": "愉悦/欣喜",
-          "definition": "唤起快乐、轻松、欣喜等正向情绪",
+          "name": "Joy/Delight",
+          "definition": "Arouse positive feeling: joy, lightness, delight.",
           "note": ""
         },
         {
           "code": "1.6",
-          "name": "愤怒/义愤",
-          "definition": "唤起愤怒、不平、义愤",
-          "note": "新增"
+          "name": "Anger/Indignation",
+          "definition": "Arouse anger, grievance, righteous indignation.",
+          "note": "new"
         },
         {
           "code": "1.7",
-          "name": "敬畏/崇高",
-          "definition": "激发崇敬、震撼、被超越之感",
+          "name": "Awe/Sublime",
+          "definition": "Inspire awe, shock, a sense of being transcended.",
           "note": ""
         }
       ]
     },
     {
-      "top_intent": "注意引导",
+      "top_intent": "Attention Guidance",
       "type": "A",
-      "definition": "控制观众在画面内的注视落点，强调或弱化特定元素。",
+      "definition": "Control where the audience looks inside the frame; emphasize or downplay specific elements.",
       "sub_intents": [
         {
           "code": "2.1",
-          "name": "强调主体/细节",
-          "definition": "把视线聚焦到特定主体或细节",
+          "name": "Emphasize subject/detail",
+          "definition": "Focus the gaze on a specific subject or detail.",
           "note": ""
         },
         {
           "code": "2.2",
-          "name": "引导注视路径",
-          "definition": "规划视线的移动路径与先后落点",
+          "name": "Guide gaze path",
+          "definition": "Choreograph the path and landing points of the gaze.",
           "note": ""
         },
         {
           "code": "2.3",
-          "name": "弱化/隐藏",
-          "definition": "弱化或隐藏次要信息以反衬重点",
+          "name": "De-emphasize/Hide",
+          "definition": "De-emphasize or hide secondary information so the key point stands out.",
           "note": ""
         },
         {
           "code": "2.4",
-          "name": "注意重定向",
-          "definition": "在一个镜头内把注意从A交接到B",
+          "name": "Attention redirect",
+          "definition": "Hand attention from A to B within one shot.",
           "note": ""
         }
       ]
     },
     {
-      "top_intent": "氛围营造",
+      "top_intent": "Atmosphere",
       "type": "B",
-      "definition": "为整场戏建立笼罩性的、持续的情绪底色与心理状态。",
+      "definition": "Build an enveloping, sustained emotional ground and psychological state for the whole scene.",
       "sub_intents": [
         {
           "code": "3.1",
-          "name": "紧张/压抑/不祥",
-          "definition": "营造压迫、不祥、悬而未决的持续气压",
-          "note": "负向"
+          "name": "Tense/Oppressive/Ominous",
+          "definition": "Sustain a pressuring, ominous, unresolved tension.",
+          "note": "negative"
         },
         {
           "code": "3.2",
-          "name": "不安/失稳/眩晕",
-          "definition": "营造持续的失衡、迷失、眩晕",
-          "note": "负向"
+          "name": "Unease/Instability/Vertigo",
+          "definition": "Sustain ongoing imbalance, disorientation and vertigo.",
+          "note": "negative"
         },
         {
           "code": "3.3",
-          "name": "阴郁/忧伤",
-          "definition": "营造贯穿全场的低落、哀伤底色",
-          "note": "负向"
+          "name": "Gloomy/Sorrowful",
+          "definition": "Sustain a low, sorrowful ground across the whole scene.",
+          "note": "negative"
         },
         {
           "code": "3.4",
-          "name": "神秘/孤寂/疏离",
-          "definition": "营造神秘、孤立、疏离、陌生的气氛",
-          "note": "负向"
+          "name": "Mysterious/Solitary/Detached",
+          "definition": "Create an atmosphere of mystery, isolation, detachment and unfamiliarity.",
+          "note": "negative"
         },
         {
           "code": "3.5",
-          "name": "温馨/温暖",
-          "definition": "营造亲密、治愈的温暖底色",
-          "note": "正向·新增"
+          "name": "Warm/Cozy",
+          "definition": "Create an intimate, healing warm ground.",
+          "note": "positive; new"
         },
         {
           "code": "3.6",
-          "name": "浪漫/抒情",
-          "definition": "营造浪漫、抒情、诗意的氛围",
-          "note": "正向·新增"
+          "name": "Romantic/Lyrical",
+          "definition": "Create a romantic, lyrical, poetic atmosphere.",
+          "note": "positive; new"
         },
         {
           "code": "3.7",
-          "name": "欢快/轻松",
-          "definition": "营造欢快、活泼、轻松的氛围",
-          "note": "正向·新增"
+          "name": "Cheerful/Light",
+          "definition": "Create a cheerful, lively, light atmosphere.",
+          "note": "positive; new"
         },
         {
           "code": "3.8",
-          "name": "宁静/平和",
-          "definition": "营造宁静、舒缓、安详的氛围",
-          "note": "正向·新增"
+          "name": "Serene/Peaceful",
+          "definition": "Create a serene, soothing, tranquil atmosphere.",
+          "note": "positive; new"
         },
         {
           "code": "3.9",
-          "name": "梦幻/超现实",
-          "definition": "营造梦境、恍惚、非现实的质感",
-          "note": "中性"
+          "name": "Dreamlike/Surreal",
+          "definition": "Create a dreamlike, trance-like, unreal texture.",
+          "note": "neutral"
         },
         {
           "code": "3.10",
-          "name": "沉浸/卷入",
-          "definition": "增强身临其境、被卷入空间之感",
-          "note": "质感/卷入"
+          "name": "Immersive/Absorbing",
+          "definition": "Strengthen the sense of being inside and drawn into the space.",
+          "note": "texture/immersion"
         },
         {
           "code": "3.11",
-          "name": "真实/纪实感",
-          "definition": "营造纪实、未经修饰的真实质感",
-          "note": "质感/卷入"
+          "name": "Authentic/Documentary",
+          "definition": "Create a documentary, unpolished sense of the real.",
+          "note": "texture/immersion"
         }
       ]
     },
     {
-      "top_intent": "视点/认同",
+      "top_intent": "Viewpoint/Alignment",
       "type": "A",
-      "definition": "安排观众的观看视角与立场（从谁看、代入谁）。",
+      "definition": "Arrange the audience's viewing position and stance (whose eyes we see from, whom we side with).",
       "sub_intents": [
         {
           "code": "4.1",
-          "name": "主观/代入",
-          "definition": "让观众从角色的眼睛观看、产生代入",
+          "name": "Subjective/POV",
+          "definition": "Make the audience see through the character's eyes and identify.",
           "note": ""
         },
         {
           "code": "4.2",
-          "name": "客观/中立旁观",
-          "definition": "以无倾向视角呈现，观众处不介入的旁观位",
+          "name": "Objective/Neutral observer",
+          "definition": "Present from a non-aligned stance; the audience stays a non-involved observer.",
           "note": ""
         },
         {
           "code": "4.3",
-          "name": "全知/上帝视角",
-          "definition": "以超越任一角色的高位提供全知视角",
+          "name": "Omniscient/God's-eye",
+          "definition": "Provide an omniscient vantage above any single character.",
           "note": ""
         },
         {
           "code": "4.4",
-          "name": "认同调节",
-          "definition": "调节观众对某角色的视角认同/亲近倾向",
+          "name": "Alignment modulation",
+          "definition": "Modulate the audience's viewpoint identification with / closeness to a character.",
           "note": ""
         }
       ]
     },
     {
-      "top_intent": "人物塑造",
+      "top_intent": "Characterization",
       "type": "A",
-      "definition": "传达角色的地位、内心、动机与人物关系（维度+取值；情感/关系带共享值集）。",
+      "definition": "Convey a character's status, inner state, motivation and relationships (dimension + value; emotion/relation share value sets).",
       "sub_intents": [
         {
           "code": "5.1",
-          "name": "权力/地位",
-          "definition": "让观众判断角色的强弱与支配地位",
-          "note": "维度·值:强势↔弱势"
+          "name": "Power/Status",
+          "definition": "Make the audience judge a character's strength and dominance.",
+          "note": "dimension; values: dominant<->submissive"
         },
         {
           "code": "5.2",
-          "name": "内心/情感/动机",
-          "definition": "让观众读懂角色的情感、心理状态与动机",
-          "note": "维度·情感值:恐惧/悲伤/愤怒/愉悦/厌恶/敬畏/孤独/焦虑…(与观众情绪共享)"
+          "name": "Inner/Emotion/Motivation",
+          "definition": "Let the audience read the character's emotion, mental state and motivation.",
+          "note": "dimension; affective values shared with audience emotion"
         },
         {
           "code": "5.3",
-          "name": "人物关系",
-          "definition": "呈现角色间的亲疏、对立、联结与孤立",
-          "note": "维度·值:亲密/对立/从属/结盟/孤立…"
+          "name": "Character relations",
+          "definition": "Present closeness, opposition, connection and isolation between characters.",
+          "note": "dimension; values: intimate/opposed/subordinate/allied/isolated"
         },
         {
           "code": "5.4",
-          "name": "性格/身份",
-          "definition": "让观众明白角色是谁（身份/职业/性格）",
-          "note": "维度"
+          "name": "Personality/Identity",
+          "definition": "Make clear who the character is (identity / occupation / personality).",
+          "note": "dimension"
         }
       ]
     },
     {
-      "top_intent": "节奏调控",
+      "top_intent": "Pacing",
       "type": "A",
-      "definition": "以运镜/动作/剪辑组织时间的快慢与节奏（单镜看运镜·动作速度，序列看剪辑）。",
+      "definition": "Organize the speed and rhythm of time via camera movement / action / editing (per shot: movement & action speed; sequences: editing density).",
       "sub_intents": [
         {
           "code": "6.1",
-          "name": "加速/紧迫",
-          "definition": "以快速运镜/快内部动作/快切制造紧迫、高能（单镜或序列均可）",
-          "note": "双极轴·快↔慢;单镜看运镜/动作速度"
+          "name": "Accelerate/Urgent",
+          "definition": "Use fast camera moves / quick internal action / rapid cutting for urgency and high energy (shot or sequence).",
+          "note": "bipolar axis; fast<->slow; per shot: movement/action speed"
         },
         {
           "code": "6.2",
-          "name": "放缓/凝滞",
-          "definition": "以缓慢运镜/慢动作/长镜凝滞制造平缓、舒展（单镜或序列均可）",
-          "note": "双极轴·快↔慢;单镜看运镜/慢动作"
+          "name": "Slow/Stagnant",
+          "definition": "Use slow camera moves / slow motion / long held shots for calm and release (shot or sequence).",
+          "note": "bipolar axis; fast<->slow; per shot: movement/slow motion"
         },
         {
           "code": "6.3",
-          "name": "表现时间流逝",
-          "definition": "暗示时间跨度或段落转换",
-          "note": "序列层"
+          "name": "Show passage of time",
+          "definition": "Imply a span of time or a segment transition.",
+          "note": "sequence layer"
         },
         {
           "code": "6.4",
-          "name": "节奏同步/情绪曲线",
-          "definition": "使观众节奏随影片节奏曲线起伏",
-          "note": "序列层"
+          "name": "Rhythm sync/Emotion curve",
+          "definition": "Make the audience's rhythm follow the film's rhythmic curve.",
+          "note": "sequence layer"
         }
       ]
     },
     {
-      "top_intent": "共情建立",
+      "top_intent": "Empathy",
       "type": "B",
-      "definition": "拉近观众与角色的情感与心理距离。",
+      "definition": "Narrow the emotional and psychological distance between the audience and the character.",
       "sub_intents": [
         {
           "code": "7.1",
-          "name": "亲密/拉近",
-          "definition": "缩短观众与角色的心理距离、建立亲密",
+          "name": "Intimacy/Closeness",
+          "definition": "Shorten the psychological distance to the character; build intimacy.",
           "note": ""
         },
         {
           "code": "7.2",
-          "name": "情感卷入/共鸣",
-          "definition": "增强对角色处境的情感投入与共鸣",
+          "name": "Emotional involvement/Resonance",
+          "definition": "Deepen emotional investment in and resonance with the character's situation.",
           "note": ""
         },
         {
           "code": "7.3",
-          "name": "心智化/理解角色心理",
-          "definition": "促使观众主动推断、理解角色心理",
+          "name": "Mentalizing/Understanding character",
+          "definition": "Prompt the audience to actively infer and understand the character's mind.",
           "note": ""
         },
         {
           "code": "7.4",
-          "name": "同情/道德结盟",
-          "definition": "使观众在道德上站到角色一边、在乎其福祉",
+          "name": "Sympathy/Moral alliance",
+          "definition": "Bring the audience morally to the character's side, caring about their welfare.",
           "note": ""
         }
       ]
     },
     {
-      "top_intent": "信息管理",
+      "top_intent": "Information Management",
       "type": "A/B(8.1=A;8.2-8.4=B)",
-      "definition": "操纵观众相对角色的知识获取，制造好奇/悬念/惊讶（揭示/隐藏/延迟/误导等手法归手段层）。【新一级】",
+      "definition": "Control the audience's knowledge relative to the character to create curiosity / suspense / surprise (reveal / hide / delay / mislead are the means layer).",
       "sub_intents": [
         {
           "code": "8.1",
-          "name": "揭示/解惑",
-          "definition": "向观众揭开真相、化解疑问（获知）",
-          "note": "效果"
+          "name": "Reveal/Clarify",
+          "definition": "Reveal the truth to the audience and resolve questions (knowing).",
+          "note": "effect"
         },
         {
           "code": "8.2",
-          "name": "好奇",
-          "definition": "对已发生但被瞒的信息产生探究欲",
-          "note": "叙事兴趣·过去"
+          "name": "Curiosity",
+          "definition": "Desire to investigate something past that was withheld.",
+          "note": "narrative interest; past"
         },
         {
           "code": "8.3",
-          "name": "悬念",
-          "definition": "对未知结果产生焦灼预期",
-          "note": "叙事兴趣·未来(自情绪迁入)"
+          "name": "Suspense",
+          "definition": "Anxious anticipation of an unknown future outcome.",
+          "note": "narrative interest; future (moved from emotion)"
         },
         {
           "code": "8.4",
-          "name": "惊讶",
-          "definition": "因意外揭示产生震动",
-          "note": "叙事兴趣·意外(自情绪迁入)"
+          "name": "Surprise",
+          "definition": "Shock caused by an unexpected revelation.",
+          "note": "narrative interest; surprise (moved from emotion)"
         }
       ]
     },
     {
-      "top_intent": "情境交代",
+      "top_intent": "Exposition",
       "type": "A",
-      "definition": "交代动作发生的时空、场景与背景信息。",
+      "definition": "Establish the time, place, scene and background in which the action happens.",
       "sub_intents": [
         {
           "code": "9.1",
-          "name": "交代地点/时空",
-          "definition": "建立场景的地点、时间、时代与环境",
+          "name": "Establish place/time",
+          "definition": "Establish the scene's location, time, era and environment.",
           "note": ""
         },
         {
           "code": "9.2",
-          "name": "建立场景地理",
-          "definition": "让观众形成谁在哪、彼此位置的认知地图",
+          "name": "Establish scene geography",
+          "definition": "Give the audience a cognitive map of who is where and how positions relate.",
           "note": ""
         },
         {
           "code": "9.3",
-          "name": "交代背景/情境信息",
-          "definition": "提供理解情节所需的背景信息",
+          "name": "Convey background/context",
+          "definition": "Provide the background information needed to understand the plot.",
           "note": ""
         }
       ]
     },
     {
-      "top_intent": "空间表征",
+      "top_intent": "Spatial Representation",
       "type": "A",
-      "definition": "表现主体与环境、人物之间的大小、规模与位置关系。",
+      "definition": "Express size, scale and positional relations between subject, environment and characters.",
       "sub_intents": [
         {
           "code": "10.1",
-          "name": "主体—环境关系",
-          "definition": "呈现主体与所处环境的关系与占比",
+          "name": "Subject-environment relation",
+          "definition": "Present the relation and proportion between subject and environment.",
           "note": ""
         },
         {
           "code": "10.2",
-          "name": "渺小/被吞没",
-          "definition": "使人物显得空间上渺小、被环境吞没",
-          "note": "双极轴·尺度"
+          "name": "Tiny/Engulfed",
+          "definition": "Make the person appear spatially tiny, engulfed by the environment.",
+          "note": "bipolar axis; scale"
         },
         {
           "code": "10.3",
-          "name": "规模/体量",
-          "definition": "传达对象或空间的规模、体量、宏大感",
-          "note": "双极轴·尺度"
+          "name": "Scale/Magnitude",
+          "definition": "Convey the scale, magnitude or grandeur of an object or space.",
+          "note": "bipolar axis; scale"
         },
         {
           "code": "10.4",
-          "name": "人物间空间关系",
-          "definition": "呈现多角色之间的空间位置与距离关系",
+          "name": "Inter-character spatial relation",
+          "definition": "Present spatial positions and distances among multiple characters.",
           "note": ""
         }
       ]
     },
     {
-      "top_intent": "构图美学",
+      "top_intent": "Compositional Aesthetics",
       "type": "A",
-      "definition": "经由构图与形式法则营造画面的平衡、张力与美学。",
+      "definition": "Create balance, tension and visual beauty of the frame through composition and formal rules.",
       "sub_intents": [
         {
           "code": "11.1",
-          "name": "平衡/稳定",
-          "definition": "营造画面的平衡、稳定、统一",
-          "note": "双极轴·稳定↔张力"
+          "name": "Balance/Stability",
+          "definition": "Create balance, stability and unity of the frame.",
+          "note": "bipolar axis; stability<->tension"
         },
         {
           "code": "11.2",
-          "name": "失衡/视觉张力",
-          "definition": "以构图制造视觉张力、能量、不安定",
-          "note": "双极轴·稳定↔张力"
+          "name": "Imbalance/Visual tension",
+          "definition": "Create visual tension, energy and instability through composition.",
+          "note": "bipolar axis; stability<->tension"
         },
         {
           "code": "11.3",
-          "name": "形式美/趣味",
-          "definition": "追求画面的唯美、和谐与视觉趣味",
-          "note": "合并形式美+趣味"
+          "name": "Formal beauty/Interest",
+          "definition": "Pursue beauty, harmony and visual interest of the frame.",
+          "note": "merge of formal beauty + interest"
         },
         {
           "code": "11.4",
-          "name": "作者风格/统一性",
-          "definition": "以稳定的形式选择体现作者/导演风格",
-          "note": "横切属性"
+          "name": "Authorial style/Unity",
+          "definition": "Express an author/director style through consistent formal choices.",
+          "note": "cross-cutting attribute"
         }
       ]
     },
     {
-      "top_intent": "主题表意",
+      "top_intent": "Thematic Meaning",
       "type": "A",
-      "definition": "以视觉隐喻、象征传达超越台词的主题与思想。",
+      "definition": "Convey theme and ideas beyond dialogue through visual metaphor and symbolism.",
       "sub_intents": [
         {
           "code": "12.1",
-          "name": "视觉隐喻/象征",
-          "definition": "用视觉元素承载隐喻、象征意义（含强化主题）",
-          "note": "合并隐喻+强化主题"
+          "name": "Visual metaphor/Symbol",
+          "definition": "Use visual elements to carry metaphor and symbolic meaning (incl. theme reinforcement).",
+          "note": "merge of metaphor + theme reinforcement"
         },
         {
           "code": "12.2",
-          "name": "母题/重复意象",
-          "definition": "以反复出现的意象/色彩贯穿、强化意义",
+          "name": "Motif/Recurring imagery",
+          "definition": "Thread a recurring image/color through the work to reinforce meaning.",
           "note": ""
         },
         {
           "code": "12.3",
-          "name": "区分/界定叙事段落",
-          "definition": "以视觉差异区分或标记叙事段落",
-          "note": "序列层"
+          "name": "Demarcate narrative segments",
+          "definition": "Use visual differences to demarcate or mark narrative segments.",
+          "note": "sequence layer"
         }
       ]
     }

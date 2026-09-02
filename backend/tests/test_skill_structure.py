@@ -130,7 +130,7 @@ def test_prompt_section_renders_chain_and_examples():
     assert "威胁半隐维持信息不对称" in section     # 推理链进 prompt
     assert "few-shot" in section                  # 示例段
     assert "movement=固定" in section
-    assert "意图忠实 > 偏好惯性" in section        # 铁律
+    assert "intent fidelity > preference inertia" in section  # iron rule
 
 def test_prompt_section_falls_back_for_legacy_skill():
     legacy = {
@@ -138,4 +138,4 @@ def test_prompt_section_falls_back_for_legacy_skill():
         "plan": {}, "review": {"checks": []},
     }
     section = skill_prompt_section(legacy)
-    assert "倾向 movement: 固定" in section
+    assert "prefer movement: 固定" in section

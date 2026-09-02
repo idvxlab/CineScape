@@ -54,12 +54,12 @@ def _prevailing_label(question: dict) -> str:
     """Plain-language prevailing conclusion for the panel."""
     p = prevailing_answer(question.get("answers") or [])
     if p == ANSWER_A:
-        return (question.get("alt_a") or {}).get("label", "选项 A")
+        return (question.get("alt_a") or {}).get("label", "Option A")
     if p == ANSWER_B:
-        return (question.get("alt_b") or {}).get("label", "选项 B")
+        return (question.get("alt_b") or {}).get("label", "Option B")
     if p == "open":
-        return "两可"
-    return "尚未确定"
+        return "Open"
+    return "Undecided"
 
 
 @memory_router.get("/{user_id}/memory")
@@ -69,7 +69,7 @@ async def list_memory(user_id: str):
         questions = await get_questions_for_user(user_id, include_revoked=True)
     except Exception:
         logger.warning("list_memory failed for %s", user_id, exc_info=True)
-        raise HTTPException(status_code=503, detail="记忆服务暂不可用")
+        raise HTTPException(status_code=503, detail="Memory service temporarily unavailable")
     return {
         "user_id": user_id,
         "questions": [
@@ -98,14 +98,14 @@ async def act_on_memory(
 ):
     """Emphasize, revoke, or delete a preference question (user data sovereignty)."""
     if body.action not in ("emphasize", "revoke", "delete"):
-        raise HTTPException(status_code=422, detail="action 只能是 emphasize | revoke | delete")
+        raise HTTPException(status_code=422, detail="action must be emphasize | revoke | delete")
     try:
         ok = await set_user_flag(user_id, question_id, body.action)
     except Exception:
         logger.warning("act_on_memory failed for %s/%s", user_id, question_id, exc_info=True)
-        raise HTTPException(status_code=503, detail="记忆服务暂不可用")
+        raise HTTPException(status_code=503, detail="Memory service temporarily unavailable")
     if not ok:
-        raise HTTPException(status_code=404, detail="问题不存在或不属于该用户")
+        raise HTTPException(status_code=404, detail="Question not found or does not belong to this user")
     await record_event(
         f"memory-panel:{user_id}",
         "memory_action",

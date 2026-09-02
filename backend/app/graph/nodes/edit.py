@@ -42,12 +42,12 @@ def _apply_patch(candidate: dict, patch: list[dict]) -> tuple[dict, list[dict]]:
         shot = shots_by_order.get(order)
         if shot is None:
             rejected.append(
-                {"shot_order": order or 0, "field": field, "message": f"镜头 {order} 不存在"}
+                {"shot_order": order or 0, "field": field, "message": f"shot {order} does not exist"}
             )
             continue
         if field not in _EDITABLE_FIELDS:
             rejected.append(
-                {"shot_order": order, "field": field, "message": f"字段 {field} 不可编辑"}
+                {"shot_order": order, "field": field, "message": f"field {field} is not editable"}
             )
             continue
         shot[field] = value
@@ -96,7 +96,7 @@ async def edit_node(state: SessionState) -> dict:
                 {
                     "shot_order": 0,
                     "field": "system",
-                    "message": "校验服务暂不可用,编辑已应用但未审校",
+                    "message": "Validation service temporarily unavailable; the edit was applied but not revalidated",
                 }
             )
 

@@ -66,17 +66,17 @@ def test_adoption_empty_inputs():
 
 def test_critic_prompt_includes_soft_checks_when_given():
     _, user = PromptBuilder.critic({}, {}, "", "", skill_checks=["是否体现:威胁半隐"])
-    assert "偏好软检查" in user
+    assert "Preference soft checks" in user
     assert "是否体现:威胁半隐" in user
 
 
 def test_critic_prompt_omits_section_without_checks():
     _, user = PromptBuilder.critic({}, {}, "", "", skill_checks=None)
-    assert "偏好软检查" not in user
+    assert "Preference soft checks" not in user
     _, user = PromptBuilder.critic({}, {}, "", "", skill_checks=[])
-    assert "偏好软检查" not in user
+    assert "Preference soft checks" not in user
 
 
 def test_critic_system_marks_soft_checks_non_failing():
     system, _ = PromptBuilder.critic({}, {}, "", "", skill_checks=["x"])
-    assert "不能作为 passed=false 的依据" in system
+    assert "never be a reason for passed=false" in system

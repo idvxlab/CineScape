@@ -35,7 +35,7 @@ def _check_serves_codes(candidate: dict, allowed: set[str]) -> list[str]:
         unknown = [c for c in shot.get("serves", []) if c not in allowed]
         if unknown:
             issues.append(
-                f"镜头{shot.get('order', '?')} serves 引用了收敛意图之外的 code: {unknown}"
+                f"shot {shot.get('order', '?')} serves cites codes outside the converged intents: {unknown}"
             )
     return issues
 
@@ -63,12 +63,12 @@ async def critic_node(state: SessionState) -> dict:
         # 1. Hardcoded coupling check (deterministic)
         coupling_issues = check_all_couplings(candidate.get("shots", []))
         problems.extend(
-            f"[参数耦合] 镜头{i.shot_order} {i.field}: {i.message}" for i in coupling_issues
+            f"[parameter coupling] shot {i.shot_order} {i.field}: {i.message}" for i in coupling_issues
         )
 
         # 2. Deterministic serves-code check
         allowed = set(state.tags) | set(candidate.get("dominant_intents", []))
-        problems.extend(f"[意图引用] {msg}" for msg in _check_serves_codes(candidate, allowed))
+        problems.extend(f"[intent citation] {msg}" for msg in _check_serves_codes(candidate, allowed))
 
         # 3. LLM mechanism-chain / confusable / axis judgment (only if 1-2 pass)
         if not problems:
@@ -90,13 +90,13 @@ async def critic_node(state: SessionState) -> dict:
                 if not data.get("passed", False):
                     issues = data.get("issues", [])
                     problems.extend(
-                        f"[{i.get('type', '?')}] 镜头{i.get('shot_order', '?')} "
+                        f"[{i.get('type', '?')}] shot {i.get('shot_order', '?')} "
                         f"{i.get('field', '')}: {i.get('message', '')}"
                         for i in issues
                     )
-                    problems.extend(f"[建议] {s}" for s in data.get("suggestions", []))
+                    problems.extend(f"[suggestion] {s}" for s in data.get("suggestions", []))
                     if not issues:
-                        problems.append("[意图忠实] 未通过审校(模型未给出具体 issue)")
+                        problems.append("[intent fidelity] Failed review (the model gave no concrete issue)")
             except Exception:
                 logger.exception("Critic LLM call failed for %s, letting it pass", scheme_id)
 

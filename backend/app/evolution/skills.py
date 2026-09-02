@@ -164,15 +164,15 @@ def _chain_step(
     The mechanism sentence was authored by the discovery LLM and audited via
     the memory panel; assembly here is a deterministic template.
     """
-    parts = [f"处理「{q.get('decision', '')}」时,倾向『{preferred.get('label', '')}』"]
+    parts = [f"When handling \"{q.get('decision', '')}\", lean toward \"{preferred.get('label', '')}\""]
     mechanism = preferred.get("mechanism")
     if mechanism:
-        parts.append(f"—— 机制:{mechanism}")
+        parts.append(f" -- mechanism: {mechanism}")
     if pref_fields:
         params = " · ".join(f"{f}={v}" for f, v in sorted(pref_fields.items()))
-        parts.append(f"(参数落点:{params})")
+        parts.append(f" (parameter targets: {params})")
     if avoided.get("label"):
-        parts.append(f";避免『{avoided['label']}』")
+        parts.append(f"; avoid \"{avoided['label']}\"" )
     return {
         "stage": "detail",
         "instruction": "".join(parts),
@@ -195,17 +195,17 @@ def _build_workflow(
             {
                 "stage": "strategy",
                 "instruction": (
-                    f"优先发展服务意图 {prefer_intent_codes} 的机制方向;"
-                    "只调整方向顺序,不删除任何备选方向"
+                    f"Prioritize mechanism directions that serve intents {prefer_intent_codes}; "
+                    "only reorder directions, never drop an alternative"
                 ),
                 "fields": [],
             }
         )
     plan_bits = []
     if shot_count:
-        plan_bits.append(f"镜头数倾向约 {shot_count} 镜")
+        plan_bits.append(f"shot-count tendency: about {shot_count} shots")
     if sequence_pattern:
-        plan_bits.append(f"序列结构倾向:{sequence_pattern}")
+        plan_bits.append(f"sequence-structure tendency: {sequence_pattern}")
     if plan_bits:
         steps.append({"stage": "plan", "instruction": ";".join(plan_bits), "fields": []})
     steps.extend(detail_steps)
@@ -213,7 +213,7 @@ def _build_workflow(
         steps.append(
             {
                 "stage": "review",
-                "instruction": "自查(软性,不覆盖意图/本体/耦合):" + " / ".join(review_checks),
+                "instruction": "self-check (soft; does not override intent/ontology/coupling): " + " / ".join(review_checks),
                 "fields": [],
             }
         )
@@ -251,7 +251,7 @@ def select_examples(
                     {
                         "source": str(rec.get("record_id", "")),
                         "shot": compact,
-                        "note": "体现偏好:" + " · ".join(
+                        "note": "reflects preference: " + " · ".join(
                             f"{f}={prefer[f]}" for f in sorted(matched)
                         ),
                     },
@@ -363,30 +363,30 @@ def skill_prompt_section(skill: dict | None) -> str:
     if not lines:
         plan = skill.get("plan") or {}
         if plan.get("shot_count"):
-            lines.append(f"- 镜头数倾向:约 {plan['shot_count']} 镜")
+            lines.append(f"- shot-count tendency: about {plan['shot_count']} shots")
         if plan.get("sequence_pattern"):
-            lines.append(f"- 序列结构倾向:{plan['sequence_pattern']}")
+            lines.append(f"- sequence-structure tendency: {plan['sequence_pattern']}")
         for rule in skill.get("detail", {}).get("prefer", []):
-            lines.append(f"- 倾向 {rule['field']}: {'/'.join(rule['values'])}")
+            lines.append(f"- prefer {rule['field']}: {'/'.join(rule['values'])}")
         for rule in skill.get("detail", {}).get("avoid", []):
-            lines.append(f"- 避免 {rule['field']}: {'/'.join(rule['values'])}")
+            lines.append(f"- avoid {rule['field']}: {'/'.join(rule['values'])}")
 
     if not lines:
         return ""
 
-    section = "\n\n## 个人 workflow skill(已确证偏好,软性指导)\n" + "\n".join(lines)
+    section = "\n\n## Personal workflow skill (corroborated preferences, soft guidance)\n" + "\n".join(lines)
 
     examples = skill.get("examples") or []
     if examples:
-        section += "\n\n该用户过往采纳方案中的实例(few-shot 参考,模仿其取舍而非照抄):"
+        section += "\n\nExemplars from this user\'s previously adopted schemes (few-shot reference; mimic their trade-offs, do not copy):"
         for ex in examples[:2]:
             shot = ex.get("shot") or {}
             params = " · ".join(f"{k}={v}" for k, v in shot.items() if k != "serves")
             section += f"\n- {params}({ex.get('note', '')})"
 
     section += (
-        "\n应用纪律(铁律:意图忠实 > 偏好惯性):偏好只在满足当前意图前提下取舍;"
-        "与 brief / 本体 / serves / 参数耦合冲突时忽略对应字段;受影响镜头仍须声明 serves。"
+        "\nApplication discipline (iron rule: intent fidelity > preference inertia): apply a preference only when it satisfies the current intent; "
+        "ignore the field when it conflicts with the brief / ontology / serves / parameter coupling; affected shots must still declare serves."
     )
     return section
 
@@ -417,7 +417,7 @@ def naive_style_note(exemplar_records: list[dict[str, Any]], limit: int = 3) -> 
     if not lines:
         return None
     return (
-        "\n\n## 个人风格便签(来自你过往采纳的方案,未经验证)\n"
+        "\n\n## Personal style note (from schemes you adopted before; unverified)\n"
         + "\n".join(lines[:6])
-        + "\n可作风格参考;与当前意图冲突时以当前意图为准。"
+        + "\nMay serve as stylistic reference; when it conflicts with the current intent, the current intent wins."
     )

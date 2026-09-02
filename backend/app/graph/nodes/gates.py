@@ -90,10 +90,10 @@ async def confirm_gate_node(state: SessionState) -> dict:
             updates["active_skill"] = active_skill
         return updates
 
-    rejection = (decision or {}).get("rejection_text") or "用户否决了当前复述,请进一步澄清。"
+    rejection = (decision or {}).get("rejection_text") or "The user rejected the current restatement; please clarify further."
     logger.info("User rejected alignment: %s", rejection[:200])
     updates_rej: dict = {
-        "messages": [{"role": "user", "content": f"[否决复述] {rejection}"}],
+        "messages": [{"role": "user", "content": f"[rejected restatement] {rejection}"}],
         "converged": False,
         "phase": "align",
     }

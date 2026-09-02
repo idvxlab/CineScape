@@ -32,11 +32,11 @@ def save_reference_image(session_id: str, content: bytes, content_type: str) -> 
     """
     ext = ALLOWED_IMAGE_TYPES.get(content_type)
     if ext is None:
-        raise ValueError(f"不支持的图片类型: {content_type}(仅支持 JPEG/PNG/WebP)")
+        raise ValueError(f"Unsupported image type: {content_type} (JPEG/PNG/WebP only)")
     if len(content) > MAX_IMAGE_BYTES:
-        raise ValueError("图片超过 10MB 上限")
+        raise ValueError("Image exceeds the 10MB limit")
     if not content:
-        raise ValueError("图片内容为空")
+        raise ValueError("Image content is empty")
 
     ensure_uploads_dir()
     filename = f"{session_id}{ext}"

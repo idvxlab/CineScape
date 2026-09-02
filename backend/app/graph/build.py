@@ -119,7 +119,7 @@ def _generate_send(state: SessionState, direction: dict) -> Send:
 
 def strategy_router(state: SessionState) -> list[Send]:
     """Fan-out: one Send per enumerated direction."""
-    directions = state.directions or [{"id": "A", "name": "意图直推方案"}]
+    directions = state.directions or [{"id": "A", "name": "Direct reasoning scheme"}]
     return [_generate_send(state, d) for d in directions]
 
 

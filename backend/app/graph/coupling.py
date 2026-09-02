@@ -41,7 +41,7 @@ def check_spatial_coupling(shot_order: int, shot: dict) -> list[CouplingIssue]:
             CouplingIssue(
                 shot_order=shot_order,
                 field="shot_size/focal_length",
-                message="长焦镜头与广角/全景景别不兼容：长焦压缩空间，广角强调纵深",
+                message="Telephoto conflicts with a wide/full shot: a long lens compresses space while a wide shot needs depth",
             )
         )
 
@@ -53,7 +53,7 @@ def check_spatial_coupling(shot_order: int, shot: dict) -> list[CouplingIssue]:
             CouplingIssue(
                 shot_order=shot_order,
                 field="depth_of_field/shot_size",
-                message="浅景深在全景/广角景别上难以实现（需要极大光圈或特殊设备）",
+                message="Shallow depth of field is impractical at a wide/full shot size (needs a very large aperture or special equipment)",
             )
         )
 
@@ -65,7 +65,7 @@ def check_spatial_coupling(shot_order: int, shot: dict) -> list[CouplingIssue]:
             CouplingIssue(
                 shot_order=shot_order,
                 field="depth_of_field/shot_size",
-                message="深景深在特写景别上不自然：背景细节被过度强调，分散主体注意力",
+                message="Deep depth of field looks unnatural at close-up sizes: background detail is over-emphasized and distracts from the subject",
             )
         )
 
@@ -94,7 +94,7 @@ def check_temporal_coupling(shot_order: int, shot: dict) -> list[CouplingIssue]:
             CouplingIssue(
                 shot_order=shot_order,
                 field="movement/rhythm",
-                message="固定/静止运镜与急促节奏不协调：固定镜头缺乏内部运动支撑快节奏",
+                message="A locked-off/static camera conflicts with an urgent rhythm: a fixed shot has no internal motion to support a fast pace",
             )
         )
 
@@ -116,7 +116,7 @@ def check_temporal_coupling(shot_order: int, shot: dict) -> list[CouplingIssue]:
             CouplingIssue(
                 shot_order=shot_order,
                 field="movement/rhythm",
-                message="快速/运动运镜与舒缓节奏不匹配：镜头运动本身蕴含节奏张力",
+                message="A rapid/moving camera conflicts with a calm rhythm: the camera motion itself carries rhythmic tension",
             )
         )
 
@@ -146,7 +146,7 @@ def check_tonal_coupling(shot_order: int, shot: dict) -> list[CouplingIssue]:
             CouplingIssue(
                 shot_order=shot_order,
                 field="lighting/color_tone",
-                message="高对比/硬光与柔和色彩在视觉情绪上矛盾：硬光产生强烈阴影与固态感，柔和色彩则削弱对比",
+                message="High-contrast/hard light clashes with soft pastel color: hard light creates strong shadows and solidity while soft color reduces contrast",
             )
         )
 
@@ -158,7 +158,7 @@ def check_tonal_coupling(shot_order: int, shot: dict) -> list[CouplingIssue]:
             CouplingIssue(
                 shot_order=shot_order,
                 field="lighting/color_tone",
-                message="暖调光影与冷色偏存在色调冲突——除非意图是混合/矛盾色调",
+                message="Warm lighting conflicts with a cool color bias - unless a mixed/contradictory grade is the intent",
             )
         )
 

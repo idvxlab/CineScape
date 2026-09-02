@@ -1,117 +1,167 @@
-# 本体 v3 元字段 — 人工精修层
-#
-# labels_v3.json 是分类内容的权威源(12 一级 × 56 二级);本文件把其
-# 备注列中的结构信息显式化为机器可读字段,运行时由 loader 合并校验。
-# 修改分类内容请改 labels_v3.json;修改系统如何使用分类请改本文件。
-
 meta:
   version: v3
-
-  # ── 一级意图:对齐控件提示 ──────────────────────────────────────
-  # selection: 对齐阶段该维度倾向单选还是多选(控件渲染提示,非硬约束)
   top_intents:
-    情绪唤起:
+    Emotion Evocation:
       selection: multi
-      hint: 点状情绪可主次叠加,但建议聚焦 1-2 种
-    注意引导:
+      hint: Punctual emotions can stack primary/secondary, but keep focus to 1-2.
+    Attention Guidance:
       selection: multi
-      hint: 一场戏内可有多个注意策略,单镜通常一个
-    氛围营造:
+      hint: A scene may hold several attention strategies; a single shot usually one.
+    Atmosphere:
       selection: multi
-      hint: 底色(3.1-3.9)至多选一,质感(3.10/3.11)可叠加
-    视点/认同:
+      hint: Pick at most one ground tone (3.1-3.9); textures (3.10/3.11) may layer.
+    Viewpoint/Alignment:
       selection: single
-      hint: 同一时刻观看位置唯一;4.4 认同调节可与前三者并存
-    人物塑造:
+      hint: Viewing position is unique at any instant; 4.4 alignment modulation may
+        coexist with the first three.
+    Characterization:
       selection: multi
-      hint: 维度+取值结构,选中后需追问具体取值
-    节奏调控:
+      hint: Dimension + value structure; ask for the concrete value once selected.
+    Pacing:
       selection: single
-      hint: 快慢为双极轴,用滑块;6.3/6.4 为序列层可另选
-    共情建立:
+      hint: Fast/slow is a bipolar axis - use a slider; 6.3/6.4 are sequence-layer
+        and selectable separately.
+    Empathy:
       selection: multi
-      hint: 亲密/卷入/心智化/结盟可递进叠加
-    信息管理:
+      hint: Intimacy / involvement / mentalizing / alliance can stack progressively.
+    Information Management:
       selection: multi
-      hint: 8.1 为导演给信息(A),8.2-8.4 为观众叙事兴趣(B)
-    情境交代:
+      hint: 8.1 is director-given information (A); 8.2-8.4 are audience narrative
+        interest (B).
+    Exposition:
       selection: multi
-      hint: 功能性维度,通常作为次要意图出现
-    空间表征:
+      hint: Functional dimension; usually appears as a secondary intent.
+    Spatial Representation:
       selection: multi
-      hint: 10.2/10.3 为尺度双极轴,用滑块
-    构图美学:
+      hint: 10.2/10.3 are the scale bipolar axis - use a slider.
+    Compositional Aesthetics:
       selection: multi
-      hint: 11.1/11.2 为双极轴;11.4 是横切属性,谨慎选用
-    主题表意:
+      hint: 11.1/11.2 are a bipolar axis; 11.4 is a cross-cutting attribute - use
+        with care.
+    Thematic Meaning:
       selection: multi
-      hint: 12.2/12.3 为序列层意图
-
-  # ── 二级意图覆盖:A/B 类型(默认继承一级 type,此处列例外)────────
-  # A = 导演构成性意图(画面上可直接验证的安排)
-  # B = 观众效应性意图(要在观众心里发生的反应)
+      hint: 12.2/12.3 are sequence-layer intents.
   sub_types:
-    "8.1": A
-    "8.2": B
-    "8.3": B
-    "8.4": B
-
-  # ── 作用域:该意图绑定在什么粒度上 ─────────────────────────────
-  # shot = 单镜可达成(默认);scene = 贯穿整场的底色;sequence = 需镜头序列
+    '8.1': A
+    '8.2': B
+    '8.3': B
+    '8.4': B
   scopes:
     scene:
-      ["3.1", "3.2", "3.3", "3.4", "3.5", "3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
-    sequence: ["6.3", "6.4", "12.2", "12.3"]
-    both: ["6.1", "6.2"]
-
-  # ── 双极轴:成对的二级意图渲染为滑块,且互斥 ────────────────────
+    - '3.1'
+    - '3.2'
+    - '3.3'
+    - '3.4'
+    - '3.5'
+    - '3.6'
+    - '3.7'
+    - '3.8'
+    - '3.9'
+    - '3.10'
+    - '3.11'
+    sequence:
+    - '6.3'
+    - '6.4'
+    - '12.2'
+    - '12.3'
+    both:
+    - '6.1'
+    - '6.2'
   axes:
-    - id: 节奏快慢
-      poles: ["6.1", "6.2"]
-      description: 快 ↔ 慢;单镜看运镜与内部动作速度,序列看剪辑密度
-    - id: 空间尺度
-      poles: ["10.2", "10.3"]
-      description: 尺度对比的两极——人物渺小化 ↔ 对象宏大化,同场常互为表里
-    - id: 构图稳定张力
-      poles: ["11.1", "11.2"]
-      description: 平衡稳定 ↔ 失衡张力
-
-  # ── 维度值集:选中该二级意图后需要追问的取值 ─────────────────────
+  - id: pace-fast-slow
+    poles:
+    - '6.1'
+    - '6.2'
+    description: fast <-> slow; per shot read camera/action speed, per sequence read
+      editing density
+  - id: spatial-scale
+    poles:
+    - '10.2'
+    - '10.3'
+    description: two poles of scale - person made tiny <-> object made grand; often
+      two faces of the same setup
+  - id: composition-stability-tension
+    poles:
+    - '11.1'
+    - '11.2'
+    description: balanced stability <-> unbalanced tension
   value_sets:
-    "5.1": ["强势", "对等", "弱势"]
-    "5.2": ["恐惧", "悲伤", "愤怒", "愉悦", "厌恶", "敬畏", "孤独", "焦虑"]
-    "5.3": ["亲密", "对立", "从属", "结盟", "孤立"]
-  # 5.4 性格/身份为开放取值(自由文本)
-  open_value: ["5.4"]
-
-  # ── 易混淆判别规则:对齐阶段的判别探针 + critic 的误标检查 ───────
-  # between 是两组 code 前缀;probe 是可直接抛给用户的判别问题
+    '5.1':
+    - dominant
+    - equal
+    - submissive
+    '5.2':
+    - fear
+    - sadness
+    - anger
+    - joy
+    - disgust
+    - awe
+    - loneliness
+    - anxiety
+    '5.3':
+    - intimate
+    - opposed
+    - subordinate
+    - allied
+    - isolated
+  open_value:
+  - '5.4'
   confusable_rules:
-    - id: A
-      between: [["1"], ["3"]]
-      rule: 指到某一瞬间→情绪(1,点状);贯穿整场指不到哪一秒→氛围(3,面状)。可并存。
-      probe: 这种感受是某个具体瞬间被激发的,还是笼罩整场、说不出在哪一秒?
-    - id: B
-      between: [["4"], ["7"]]
-      rule: 调认知位置/从谁看→视点(4);调情感亲近/道德站队→共情(7)。
-      probe: 反事实:换成一个观众讨厌的角色,这个效果还在吗?还在→视点;消失→共情。
-    - id: C
-      between: [["5.2"], ["7.3"]]
-      rule: 把心理展示清楚→5.2;促观众主动推断并投入→7.3。
-      probe: 你想"让观众看懂他在想什么",还是"让观众忍不住去猜他在想什么"?
-    - id: D
-      between: [["1.2"], ["8.3"]]
-      rule: 情绪绷紧、未必有明确结果→1.2(感受态);对某未来结果的焦灼→8.3(信息焦灼)。
-      probe: 观众是单纯感到紧绷,还是在为"接下来会怎样"的某个具体结果揪心?
-    - id: E
-      between: [["8.1"], ["9"]]
-      rule: 揭开被隐瞒的真相→8.1;提供本就该给的环境/背景→9。
-      probe: 这条信息此前被刻意隐瞒过吗?
-    - id: F
-      between: [["8.2"], ["8.3"]]
-      rule: 谜在过去/已存在→好奇(8.2);焦灼在未来结果→悬念(8.3)。
-      probe: 观众想知道的是"已经发生了什么",还是"接下来会发生什么"?
-    - id: G
-      between: [["3.5", "3.6", "3.7", "3.8"], ["1.5"]]
-      rule: 贯穿整场的暖/欢底色→氛围(面状);某一刻高兴→情绪(点状)。
-      probe: 这份暖意是整场的底色,还是某一刻被点燃的?
+  - id: A
+    between:
+    - - '1'
+    - - '3'
+    rule: Pointing at one single moment -> Emotion (1, punctual); enveloping the whole
+      scene with no pointable second -> Atmosphere (3, field). They may coexist.
+    probe: Is this feeling triggered by one specific moment, or does it hang over
+      the whole scene with no single second you could point to?
+  - id: B
+    between:
+    - - '4'
+    - - '7'
+    rule: Adjusting the cognitive vantage / whose eyes we see from -> Viewpoint (4);
+      adjusting emotional closeness / moral stance -> Empathy (7).
+    probe: 'Counterfactual: if the character were someone the audience hates, would
+      the effect remain? Yes -> viewpoint; gone -> empathy.'
+  - id: C
+    between:
+    - - '5.2'
+    - - '7.3'
+    rule: Showing the inner psychology clearly -> 5.2; making the audience actively
+      infer and invest -> 7.3.
+    probe: Do you want "the audience to understand what he is thinking", or "the audience
+      unable to stop guessing what he is thinking"?
+  - id: D
+    between:
+    - - '1.2'
+    - - '8.3'
+    rule: Plain tension without a clear outcome -> 1.2 (affective state); anxiety
+      about a specific future result -> 8.3 (informational suspense).
+    probe: Is the audience simply tense, or agonizing over some concrete 'what happens
+      next' outcome?
+  - id: E
+    between:
+    - - '8.1'
+    - - '9'
+    rule: Uncovering a deliberately withheld truth -> 8.1; supplying environment/background
+      that was simply meant to be there -> 9.
+    probe: Was this piece of information deliberately withheld before?
+  - id: F
+    between:
+    - - '8.2'
+    - - '8.3'
+    rule: A mystery in the past / already existing -> Curiosity (8.2); anxiety about
+      a future outcome -> Suspense (8.3).
+    probe: Does the audience want to know "what has already happened", or "what will
+      happen next"?
+  - id: G
+    between:
+    - - '3.5'
+      - '3.6'
+      - '3.7'
+      - '3.8'
+    - - '1.5'
+    rule: A warm/cheerful ground across the whole scene -> Atmosphere (field); joy
+      at one single moment -> Emotion (punctual).
+    probe: Is this warmth the ground of the whole scene, or ignited at a single moment?

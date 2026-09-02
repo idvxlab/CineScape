@@ -170,7 +170,7 @@ def format_widget_responses(
     for dim, value in (dim_widget_responses or {}).items():
         rendered = "、".join(value) if isinstance(value, list) else str(value)
         parts.append(f"{dim}: {rendered}")
-    text = "[控件回应] " + ";".join(parts) if parts else ""
+    text = "[widget responses] " + ";".join(parts) if parts else ""
     if free_text:
-        text = f"{text}\n[自由补充] {free_text}" if text else f"[自由补充] {free_text}"
-    return text or "(用户未作答)"
+        text = f"{text}\n[free-text addition] {free_text}" if text else f"[free-text addition] {free_text}"
+    return text or "(user did not answer)"

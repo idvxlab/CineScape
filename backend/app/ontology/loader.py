@@ -166,24 +166,24 @@ class Ontology(BaseModel):
         for top in self.top_intents:
             lines.append(
                 f"{top.code}. {top.name}[{top.type_label}] — {top.definition}"
-                + (f"(选择:{top.selection},{top.selection_hint})" if top.selection_hint else "")
+                + (f"(select:{top.selection}; hint: {top.selection_hint})" if top.selection_hint else "")
             )
             for sub in top.sub_intents:
                 marks: list[str] = []
                 if sub.axis_id:
-                    marks.append(f"双极轴:{sub.axis_id}")
+                    marks.append(f"bipolar axis:{sub.axis_id}")
                 if sub.value_set:
-                    marks.append(f"取值:{'/'.join(sub.value_set)}")
+                    marks.append(f"value set:{'/'.join(sub.value_set)}")
                 if sub.open_value:
-                    marks.append("取值:开放(需追问)")
+                    marks.append("value set: open (must ask)")
                 if sub.scope != "shot":
-                    marks.append(f"作用域:{sub.scope}")
-                suffix = f" 〔{';'.join(marks)}〕" if marks else ""
+                    marks.append(f"scope:{sub.scope}")
+                suffix = f" [{';'.join(marks)}]" if marks else ""
                 lines.append(f"  {sub.code} {sub.name} — {sub.definition}{suffix}")
         lines.append("")
-        lines.append("## 易混淆判别规则(对齐时用 probe 向用户发问)")
+        lines.append("## Confusable discrimination rules (ask the user via the probe during alignment)")
         for r in self.confusable_rules:
-            lines.append(f"- [{r.id}] {r.rule} 判别问题:{r.probe}")
+            lines.append(f"- [{r.id}] {r.rule}  probe: {r.probe}")
         return "\n".join(lines)
 
     def knowledge_digest(self, codes: list[str]) -> str:
@@ -194,12 +194,12 @@ class Ontology(BaseModel):
             if sub is None or sub.knowledge is None:
                 continue
             card = sub.knowledge
-            lines = [f"### {code} {sub.name}({'效果' if sub.intent_type == 'B' else '手段'})"]
-            lines.append(f"机制:{card.mechanism}")
+            lines = [f"### {code} {sub.name} ({'Effect intent' if sub.intent_type == 'B' else 'Means intent'})"]
+            lines.append(f"mechanism: {card.mechanism}")
             for param, guidance in card.techniques.items():
                 lines.append(f"- {param}: {guidance}")
             if card.references:
-                lines.append(f"参照:{';'.join(card.references)}")
+                lines.append(f"references: {'; '.join(card.references)}")
             blocks.append("\n".join(lines))
         return "\n\n".join(blocks)
 
@@ -208,14 +208,14 @@ class Ontology(BaseModel):
         lines: list[str] = []
         rules = self.rules_for(codes)
         if rules:
-            lines.append("## 易混淆误用检查")
+            lines.append("## Confusable-misuse check")
             for r in rules:
                 lines.append(f"- [{r.id}] {r.rule}")
         axes = self.axes_for(codes)
         if axes:
-            lines.append("## 双极轴自洽检查(两极互斥,镜头不得同时服务两极)")
+            lines.append("## Bipolar-axis consistency check (the two poles are mutually exclusive; one shot must not serve both)")
             for a in axes:
-                lines.append(f"- {a.id}: {a.poles[0]} ↔ {a.poles[1]}({a.description})")
+                lines.append(f"- {a.id}: {a.poles[0]} <-> {a.poles[1]} ({a.description})")
         return "\n".join(lines)
 
 
